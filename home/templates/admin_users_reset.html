@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="max-w-2xl mx-auto space-y-6">
+  
+  <!-- Breadcrumb -->
+  <div class="flex items-center space-x-2 text-sm text-gray-400">
+    <a href="{% url 'admin_users_list' %}" class="hover:text-olive-400 transition-colors">
+      <i class="fas fa-users mr-1"></i>Users
+    </a>
+    <i class="fas fa-chevron-right text-xs"></i>
+    <span class="text-white">Reset Password</span>
+  </div>
+
+  <!-- Header -->
+  <div class="flex items-center space-x-4">
+    <div class="w-16 h-16 bg-gradient-to-br from-blue-700 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+      <i class="fas fa-key text-white text-2xl"></i>
+    </div>
+    <div>
+      <h1 class="text-3xl font-bold text-white">Reset Password</h1>
+      <p class="text-gray-400">Update user password securely</p>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="grid md:grid-cols-3 gap-6">
+    
+    <!-- User Info Card -->
+    <div class="md:col-span-1">
+      <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl sticky top-6">
+        <h3 class="text-sm font-bold text-gray-400 mb-4 uppercase">User Information</h3>
+        
+        <div class="text-center mb-4">
+          <div class="w-20 h-20 mx-auto mb-3 rounded-full bg-gradient-to-br 
+                      {% if usuario.Rol == 'Administrador' %}from-orange-700 to-orange-600
+                      {% elif usuario.Rol == 'Veterinario' %}from-purple-700 to-purple-600
+                      {% else %}from-olive-700 to-olive-600{% endif %}
+                      flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+            {{ usuario.User|slice:":1"|upper }}
+          </div>
+          <p class="text-white font-bold text-lg">{{ usuario.User }}</p>
+          <p class="text-gray-400 text-sm mb-2">{{ usuario.Email }}</p>
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold
+                       {% if usuario.Rol == 'Administrador' %}bg-orange-700/30 text-orange-400 border border-orange-700
+                       {% elif usuario.Rol == 'Veterinario' %}bg-purple-700/30 text-purple-400 border border-purple-700
+                       {% else %}bg-olive-700/30 text-olive-400 border border-olive-700{% endif %}">
+            <i class="fas 
+                   {% if usuario.Rol == 'Administrador' %}fa-user-shield
+                   {% elif usuario.Rol == 'Veterinario' %}fa-user-md
+                   {% else %}fa-user{% endif %} mr-1"></i>
+            {{ usuario.Rol }}
+          </span>
+        </div>
+
+        <div class="border-t border-dark-600 pt-4 mt-4">
+          <div class="space-y-2 text-xs text-gray-400">
+            <div class="flex items-center">
+              <i class="fas fa-info-circle text-olive-500 w-5"></i>
+              <span class="ml-2">User ID: {{ usuario.id }}</span>
+            </div>
+            <div class="flex items-center">
+              <i class="fas fa-lock text-olive-500 w-5"></i>
+              <span class="ml-2">Updating credentials</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form Card -->
+    <div class="md:col-span-2">
+      <div class="bg-dark-800 border border-dark-700 rounded-xl p-8 shadow-xl">
+        
+        <!-- Security Alert -->
+        <div class="mb-6 p-4 rounded-lg bg-yellow-900/20 border border-yellow-700">
+          <div class="flex items-start space-x-3">
+            <i class="fas fa-shield-alt text-yellow-500 text-xl mt-0.5"></i>
+            <div>
+              <p class="text-yellow-300 font-semibold mb-1">Security Notice</p>
+              <p class="text-yellow-200 text-sm">
+                You are about to reset the password for <strong>{{ usuario.User }}</strong>. 
+                The user will need to use this new password to log in.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mensajes -->
+        {% if messages %}
+          {% for message in messages %}
+            <div class="mb-6 p-4 rounded-lg {% if message.tags == 'error' %}bg-red-900/30 border border-red-700 text-red-300{% else %}bg-green-900/30 border border-green-700 text-green-300{% endif %}">
+              <i class="fas {% if message.tags == 'error' %}fa-exclamation-circle{% else %}fa-check-circle{% endif %} mr-2"></i>
+              {{ message }}
+            </div>
+          {% endfor %}
+        {% endif %}
+
+        <form method="POST" class="space-y-6" id="resetForm">
+          {% csrf_token %}
+          
+          <!-- New Password -->
+          <div class="group">
+            <label class="block text-gray-300 mb-2 font-medium text-lg">
+              <i class="fas fa-lock text-olive-500 mr-2"></i>
+              New Password *
+            </label>
+            <div class="relative">
+              <input type="password" 
+                     name="password" 
+                     id="password"
+                     required
+                     placeholder="Enter new password"
+                     class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white text-lg
+                            focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                            transition-all duration-300 group-hover:border-olive-700"
+                     oninput="checkPasswordStrength(this.value)">
+              <button type="button" onclick="togglePassword()" 
+                      class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-olive-500 transition-colors">
+                <i class="fas fa-eye text-xl" id="toggleIcon"></i>
+              </button>
+            </div>
+            
+            <!-- Password strength indicator -->
+            <div class="mt-3">
+              <div class="flex items-center justify-between text-xs mb-1">
+                <span class="text-gray-400">Password Strength:</span>
+                <span id="strengthText" class="font-semibold text-gray-500">Enter password</span>
+              </div>
+              <div class="w-full bg-dark-700 rounded-full h-2 overflow-hidden">
+                <div id="strengthBar" class="h-2 transition-all duration-300 rounded-full" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <!-- Password requirements -->
+            <div class="mt-4 p-4 bg-dark-900 border border-dark-600 rounded-lg">
+              <p class="text-sm font-semibold text-gray-400 mb-2">Password Requirements:</p>
+              <ul class="space-y-1 text-xs text-gray-500">
+                <li id="req-length" class="flex items-center">
+                  <i class="fas fa-circle text-gray-600 mr-2 text-xs"></i>
+                  At least 8 characters long
+                </li>
+                <li id="req-upper" class="flex items-center">
+                  <i class="fas fa-circle text-gray-600 mr-2 text-xs"></i>
+                  Contains uppercase letter
+                </li>
+                <li id="req-lower" class="flex items-center">
+                  <i class="fas fa-circle text-gray-600 mr-2 text-xs"></i>
+                  Contains lowercase letter
+                </li>
+                <li id="req-number" class="flex items-center">
+                  <i class="fas fa-circle text-gray-600 mr-2 text-xs"></i>
+                  Contains number
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Botones de acción -->
+          <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t border-dark-700">
+            <button type="submit"
+                    class="flex-1 bg-gradient-to-r from-blue-700 to-blue-600 hover:from-blue-600 hover:to-blue-500
+                           text-white font-semibold py-3 rounded-lg transform hover:scale-[1.02] active:scale-[0.98]
+                           transition-all duration-300 shadow-lg hover:shadow-blue-500/50 flex items-center justify-center">
+              <i class="fas fa-key mr-2"></i>
+              Update Password
+            </button>
+            
+            <a href="{% url 'admin_users_list' %}"
+               class="flex-1 bg-dark-900 hover:bg-dark-700 text-gray-300 hover:text-white font-semibold py-3 rounded-lg
+                      transition-all duration-300 border border-dark-600 hover:border-dark-500 flex items-center justify-center">
+              <i class="fas fa-times mr-2"></i>
+              Cancel
+            </a>
+          </div>
+        </form>
+
+        <!-- Additional Info -->
+        <div class="mt-6 p-4 bg-blue-900/20 border border-blue-700 rounded-lg">
+          <div class="flex items-start space-x-3">
+            <i class="fas fa-info-circle text-blue-400 mt-0.5"></i>
+            <div class="text-xs text-blue-300">
+              <p class="font-semibold mb-1">Important Information</p>
+              <ul class="list-disc list-inside space-y-1">
+                <li>The user will be logged out after password reset</li>
+                <li>Inform the user about their new password securely</li>
+                <li>Encourage them to change it on next login</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // Toggle password visibility
+  function togglePassword() {
+    const passwordInput = document.getElementById('password');
+    const toggleIcon = document.getElementById('toggleIcon');
+    
+    if (passwordInput.type === 'password') {
+      passwordInput.type = 'text';
+      toggleIcon.classList.remove('fa-eye');
+      toggleIcon.classList.add('fa-eye-slash');
+    } else {
+      passwordInput.type = 'password';
+      toggleIcon.classList.remove('fa-eye-slash');
+      toggleIcon.classList.add('fa-eye');
+    }
+  }
+
+  // Check password strength
+  function checkPasswordStrength(password) {
+    const strengthBar = document.getElementById('strengthBar');
+    const strengthText = document.getElementById('strengthText');
+    
+    let strength = 0;
+    let color = '';
+    let text = '';
+    
+    // Check requirements
+    const hasLength = password.length >= 8;
+    const hasUpper = /[A-Z]/.test(password);
+    const hasLower = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+    
+    // Update requirement indicators
+    updateRequirement('req-length', hasLength);
+    updateRequirement('req-upper', hasUpper);
+    updateRequirement('req-lower', hasLower);
+    updateRequirement('req-number', hasNumber);
+    
+    // Calculate strength
+    if (hasLength) strength++;
+    if (hasUpper) strength++;
+    if (hasLower) strength++;
+    if (hasNumber) strength++;
+    if (hasSpecial) strength++;
+    
+    // Set strength level
+    if (password.length === 0) {
+      color = 'bg-dark-700';
+      text = 'Enter password';
+      strength = 0;
+    } else if (strength <= 2) {
+      color = 'bg-red-600';
+      text = 'Weak';
+      strength = 33;
+    } else if (strength <= 3) {
+      color = 'bg-yellow-600';
+      text = 'Fair';
+      strength = 66;
+    } else {
+      color = 'bg-green-600';
+      text = 'Strong';
+      strength = 100;
+    }
+    
+    strengthBar.className = `h-2 transition-all duration-300 rounded-full ${color}`;
+    strengthBar.style.width = strength + '%';
+    strengthText.textContent = text;
+    strengthText.className = `font-semibold ${
+      text === 'Weak' ? 'text-red-400' :
+      text === 'Fair' ? 'text-yellow-400' :
+      text === 'Strong' ? 'text-green-400' :
+      'text-gray-500'
+    }`;
+  }
+
+  function updateRequirement(id, met) {
+    const element = document.getElementById(id);
+    const icon = element.querySelector('i');
+    
+    if (met) {
+      icon.classList.remove('fa-circle', 'text-gray-600');
+      icon.classList.add('fa-check-circle', 'text-green-500');
+      element.classList.remove('text-gray-500');
+      element.classList.add('text-green-400');
+    } else {
+      icon.classList.remove('fa-check-circle', 'text-green-500');
+      icon.classList.add('fa-circle', 'text-gray-600');
+      element.classList.remove('text-green-400');
+      element.classList.add('text-gray-500');
+    }
+  }
+
+  // Animación de entrada
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('resetForm');
+    form.style.opacity = '0';
+    form.style.transform = 'translateY(20px)';
+    
+    setTimeout(() => {
+      form.style.transition = 'all 0.5s ease-in-out';
+      form.style.opacity = '1';
+      form.style.transform = 'translateY(0)';
+    }, 100);
+  });
+</script>
+
+{% endblock %}

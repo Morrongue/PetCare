@@ -1,0 +1,707 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+
+<div class="max-w-5xl mx-auto space-y-6">
+  
+  <!-- Breadcrumb -->
+  <div class="flex items-center space-x-2 text-sm text-gray-400">
+    <a href="{% url 'list_citas' %}" class="hover:text-olive-400 transition-colors">
+      <i class="fas fa-calendar-alt mr-1"></i>Appointments
+    </a>
+    <i class="fas fa-chevron-right text-xs"></i>
+    <span class="text-white">{{ action }} Appointment</span>
+  </div>
+
+  <!-- Header -->
+  <div class="flex items-center space-x-4">
+    <div class="w-16 h-16 bg-gradient-to-br from-blue-700 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+      <i class="fas {% if action == 'Add' %}fa-calendar-plus{% else %}fa-calendar-edit{% endif %} text-white text-2xl"></i>
+    </div>
+    <div>
+      <h1 class="text-3xl font-bold text-white">
+        {% if action == 'Add' %}Schedule Appointment{% else %}Edit Appointment{% endif %}
+      </h1>
+      <p class="text-gray-400">
+        {% if action == 'Add' %}
+          Create a new veterinary appointment
+        {% else %}
+          Update appointment information
+        {% endif %}
+      </p>
+    </div>
+  </div>
+
+  <!-- Formulario -->
+  <div class="grid lg:grid-cols-3 gap-6">
+    
+    <!-- Columna del formulario -->
+    <div class="lg:col-span-2">
+      <div class="bg-dark-800 border border-dark-700 rounded-xl p-8 shadow-xl">
+        
+        <!-- Mensajes -->
+        {% if messages %}
+          {% for message in messages %}
+            <div class="mb-6 p-4 rounded-lg {% if message.tags == 'success' %}bg-green-900/30 border border-green-700 text-green-300{% elif message.tags == 'error' %}bg-red-900/30 border border-red-700 text-red-300{% else %}bg-blue-900/30 border border-blue-700 text-blue-300{% endif %}">
+              <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %} mr-2"></i>
+              {{ message }}
+            </div>
+          {% endfor %}
+        {% endif %}
+
+        <form method="POST" class="space-y-6" id="appointmentForm">
+          {% csrf_token %}
+          
+          <!-- Pet Selection -->
+          <div class="group">
+            <label for="paciente" class="block text-gray-300 mb-2 font-medium">
+              <i class="fas fa-paw text-olive-500 mr-2"></i>
+              Pet *
+            </label>
+            <select name="paciente" id="paciente" required
+                    class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                           focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                           transition-all duration-300 group-hover:border-olive-700">
+              <option value="">-- Select a pet --</option>
+              {% for m in mascotas %}
+                <option value="{{ m.id }}" 
+                        {% if cita and cita.id_paciente == m.id %}selected{% endif %}
+                        data-nombre="{{ m.nombre }}"
+                        data-especie="{{ m.especie }}"
+                        data-owner="{{ m.owner_name|default:'You' }}">
+                  {{ m.display_name }}
+                </option>
+              {% endfor %}
+            </select>
+            <p class="text-xs text-gray-500 mt-1 flex items-center">
+              <i class="fas fa-info-circle mr-1"></i>
+              {% if rol == 'Veterinario' or rol == 'Administrador' %}
+                Type to search by pet name, species, or owner
+              {% else %}
+                Select one of your pets
+              {% endif %}
+            </p>
+          </div>
+
+          <!-- Veterinarian Selection -->
+          <div class="group">
+            <label for="veterinario" class="block text-gray-300 mb-2 font-medium">
+              <i class="fas fa-user-md text-olive-500 mr-2"></i>
+              Veterinarian *
+            </label>
+            <select name="veterinario" id="veterinario" required
+                    class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                           focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                           transition-all duration-300 group-hover:border-olive-700">
+              <option value="">-- Select veterinarian --</option>
+              {% for v in vets %}
+                <option value="{{ v.id }}" {% if cita and cita.id_veterinario == v.id %}selected{% endif %}>
+                  Dr. {{ v.nombre }} - {{ v.especialidad }}
+                </option>
+              {% endfor %}
+            </select>
+            <p class="text-xs text-gray-500 mt-1 flex items-center">
+              <i class="fas fa-info-circle mr-1"></i>
+              Choose the appropriate specialist
+            </p>
+          </div>
+
+          <!-- Date & Time (MEJORADO) -->
+          <div class="group">
+            <label for="fecha" class="block text-gray-300 mb-2 font-medium">
+              <i class="fas fa-calendar-alt text-olive-500 mr-2"></i>
+              Date & Time *
+            </label>
+            <div class="relative">
+              <input type="datetime-local" 
+                     id="fecha" 
+                     name="fecha" 
+                     required
+                     class="datetime-input w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                            focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                            transition-all duration-300 group-hover:border-olive-700
+                            [&::-webkit-calendar-picker-indicator]:cursor-pointer
+                            [&::-webkit-calendar-picker-indicator]:opacity-70
+                            [&::-webkit-calendar-picker-indicator]:hover:opacity-100
+                            [&::-webkit-calendar-picker-indicator]:transition-opacity"
+                     {% if cita %} value="{{ cita.fecha|date:'Y-m-d\TH:i' }}" {% endif %}>
+              <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                <i class="fas fa-calendar-day text-olive-500"></i>
+              </div>
+            </div>
+            
+            <!-- Warning message for invalid dates -->
+            <div id="dateWarning" class="hidden mt-2 p-3 bg-red-900/30 border border-red-700 rounded-lg">
+              <p class="text-xs text-red-300 flex items-start">
+                <i class="fas fa-exclamation-triangle mr-2 mt-0.5"></i>
+                <span id="dateWarningText"></span>
+              </p>
+            </div>
+            
+            <div class="mt-2 p-3 bg-blue-900/20 border border-blue-700 rounded-lg">
+              <p class="text-xs text-blue-300 flex items-start">
+                <i class="fas fa-clock mr-2 mt-0.5"></i>
+                <span><strong>Office Hours:</strong> Monday to Friday, 8:00 AM – 7:00 PM<br>
+                      <strong>Lunch Break:</strong> 12:00 PM – 2:00 PM (No appointments)<br>
+                      <strong>Minimum notice:</strong> 1 hour in advance</span>
+              </p>
+            </div>
+          </div>
+
+          <!-- Reason -->
+          <div class="group">
+            <label for="motivo" class="block text-gray-300 mb-2 font-medium">
+              <i class="fas fa-notes-medical text-olive-500 mr-2"></i>
+              Reason for Visit *
+            </label>
+            <textarea name="motivo" 
+                      id="motivo" 
+                      rows="4" 
+                      required
+                      placeholder="Describe the reason for the appointment..."
+                      class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                             focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                             transition-all duration-300 group-hover:border-olive-700 resize-none">{{ cita.motivo|default:'' }}</textarea>
+            <p class="text-xs text-gray-500 mt-1 flex items-center">
+              <i class="fas fa-info-circle mr-1"></i>
+              Be as specific as possible about symptoms or concerns
+            </p>
+          </div>
+
+          {% if rol == 'Veterinario' or rol == 'Administrador' %}
+          <!-- Duration (only for vets/admins) -->
+          <div class="group">
+            <label for="duracion" class="block text-gray-300 mb-2 font-medium">
+              <i class="fas fa-clock text-olive-500 mr-2"></i>
+              Duration (hours)
+            </label>
+            <select name="duracion" 
+                    id="duracion"
+                    class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                           focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                           transition-all duration-300 group-hover:border-olive-700">
+              <option value="1">1 hour (Standard consultation)</option>
+              <option value="2">2 hours (Extended consultation)</option>
+              <option value="3">3 hours (Minor procedure)</option>
+              <option value="4">4 hours (Surgery)</option>
+            </select>
+            <p class="text-xs text-gray-500 mt-1 flex items-center">
+              <i class="fas fa-info-circle mr-1"></i>
+              Estimated time for the procedure
+            </p>
+          </div>
+          {% endif %}
+
+          <!-- Botones de acción -->
+          <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t border-dark-700">
+            <button type="submit"
+                    id="submitBtn"
+                    class="flex-1 bg-gradient-to-r from-olive-700 to-olive-600 hover:from-olive-600 hover:to-olive-500
+                           text-white font-semibold py-3 rounded-lg transform hover:scale-[1.02] active:scale-[0.98]
+                           transition-all duration-300 shadow-lg hover:shadow-olive-500/50 flex items-center justify-center
+                           disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">
+              <i class="fas {% if action == 'Add' %}fa-calendar-check{% else %}fa-save{% endif %} mr-2"></i>
+              {% if action == 'Add' %}Save Appointment{% else %}Save Changes{% endif %}
+            </button>
+            
+            <a href="{% url 'list_citas' %}"
+               class="flex-1 bg-dark-900 hover:bg-dark-700 text-gray-300 hover:text-white font-semibold py-3 rounded-lg
+                      transition-all duration-300 border border-dark-600 hover:border-dark-500 flex items-center justify-center">
+              <i class="fas fa-times mr-2"></i>
+              Cancel
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Columna lateral - Info y Tips -->
+    <div class="lg:col-span-1 space-y-6">
+      
+      <!-- Preview Card -->
+      <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+        <h3 class="text-lg font-bold text-white mb-4 flex items-center">
+          <i class="fas fa-eye text-olive-500 mr-2"></i>
+          Summary
+        </h3>
+        
+        <div class="space-y-3 text-sm">
+          <div class="flex items-start space-x-2 text-gray-300">
+            <i class="fas fa-paw text-olive-500 mt-0.5 w-5"></i>
+            <div>
+              <p class="text-gray-500 text-xs">Pet</p>
+              <p class="text-white" id="summaryPet">Select a pet...</p>
+            </div>
+          </div>
+          <div class="flex items-start space-x-2 text-gray-300">
+            <i class="fas fa-user-md text-purple-500 mt-0.5 w-5"></i>
+            <div>
+              <p class="text-gray-500 text-xs">Veterinarian</p>
+              <p class="text-white" id="summaryVet">Select veterinarian...</p>
+            </div>
+          </div>
+          <div class="flex items-start space-x-2 text-gray-300">
+            <i class="fas fa-calendar text-blue-500 mt-0.5 w-5"></i>
+            <div>
+              <p class="text-gray-500 text-xs">Date & Time</p>
+              <p class="text-white" id="summaryDate">Select date...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tips -->
+      <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+        <h3 class="text-lg font-bold text-white mb-4 flex items-center">
+          <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+          Tips
+        </h3>
+        
+        <div class="space-y-3 text-sm">
+          <div class="flex items-start space-x-2 text-gray-300">
+            <i class="fas fa-check-circle text-olive-500 mt-0.5"></i>
+            <p>Book at least 1 hour in advance</p>
+          </div>
+          <div class="flex items-start space-x-2 text-gray-300">
+            <i class="fas fa-check-circle text-olive-500 mt-0.5"></i>
+            <p>Bring vaccination records if first visit</p>
+          </div>
+          <div class="flex items-start space-x-2 text-gray-300">
+            <i class="fas fa-check-circle text-olive-500 mt-0.5"></i>
+            <p>Describe symptoms in detail</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Important Notice -->
+      <div class="bg-yellow-900/20 border border-yellow-700 rounded-xl p-4">
+        <div class="flex items-start space-x-2">
+          <i class="fas fa-exclamation-triangle text-yellow-500 mt-0.5"></i>
+          <div class="text-xs text-yellow-300">
+            <p class="font-semibold mb-1">Emergency?</p>
+            <p>For urgent cases, please call us directly at <strong>(555) 123-4567</strong></p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Select2 CDN -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<style>
+  /* Custom Select2 styling for dark theme */
+  .select2-container--default .select2-selection--single {
+    background-color: #111827 !important;
+    border-color: #4b5563 !important;
+    height: 48px !important;
+    border-radius: 0.5rem !important;
+  }
+  
+  .select2-container--default .select2-selection--single .select2-selection__rendered {
+    color: #fff !important;
+    line-height: 48px !important;
+    padding-left: 16px !important;
+  }
+  
+  .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: 46px !important;
+    right: 10px !important;
+  }
+  
+  .select2-dropdown {
+    background-color: #1f2937 !important;
+    border-color: #4b5563 !important;
+  }
+  
+  .select2-container--default .select2-results__option {
+    color: #d1d5db !important;
+  }
+  
+  .select2-container--default .select2-results__option--highlighted {
+    background-color: #6B8E23 !important;
+    color: #fff !important;
+  }
+  
+  .select2-container--default .select2-search--dropdown .select2-search__field {
+    background-color: #111827 !important;
+    border-color: #4b5563 !important;
+    color: #fff !important;
+  }
+
+  /* ============================================
+     ESTILOS MEJORADOS PARA DATETIME INPUT
+     ============================================ */
+  
+  .datetime-input {
+    position: relative;
+    padding-right: 45px !important;
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+  }
+
+  /* Color del texto del input */
+  .datetime-input::-webkit-datetime-edit {
+    color: #ffffff;
+    padding: 0;
+  }
+
+  .datetime-input::-webkit-datetime-edit-fields-wrapper {
+    padding: 0;
+  }
+
+  /* Estilo para cada parte (día, mes, año, hora) */
+  .datetime-input::-webkit-datetime-edit-day-field,
+  .datetime-input::-webkit-datetime-edit-month-field,
+  .datetime-input::-webkit-datetime-edit-year-field,
+  .datetime-input::-webkit-datetime-edit-hour-field,
+  .datetime-input::-webkit-datetime-edit-minute-field,
+  .datetime-input::-webkit-datetime-edit-ampm-field {
+    color: #ffffff;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+  }
+
+  /* Hover en cada campo */
+  .datetime-input::-webkit-datetime-edit-day-field:hover,
+  .datetime-input::-webkit-datetime-edit-month-field:hover,
+  .datetime-input::-webkit-datetime-edit-year-field:hover,
+  .datetime-input::-webkit-datetime-edit-hour-field:hover,
+  .datetime-input::-webkit-datetime-edit-minute-field:hover {
+    background-color: #6B8E2320;
+    color: #a8c957;
+  }
+
+  /* Separadores (/, :) */
+  .datetime-input::-webkit-datetime-edit-text {
+    color: #6b7280;
+    padding: 0 2px;
+  }
+
+  /* ============================================
+     ICONO DEL CALENDARIO
+     ============================================ */
+  
+  .datetime-input::-webkit-calendar-picker-indicator {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%236B8E23' viewBox='0 0 24 24'%3E%3Cpath d='M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM5 8V6h14v2H5zm2 4h2v2H7v-2zm4 0h2v2h-2v-2zm4 0h2v2h-2v-2z'/%3E%3C/svg%3E");
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    opacity: 0.8;
+    transition: all 0.3s ease;
+    filter: none;
+    padding: 4px;
+    border-radius: 6px;
+  }
+
+  .datetime-input::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
+    background-color: #6B8E2320;
+    transform: scale(1.1);
+  }
+
+  .datetime-input::-webkit-calendar-picker-indicator:active {
+    transform: scale(0.95);
+  }
+
+  /* ============================================
+     PLACEHOLDER
+     ============================================ */
+  
+  .datetime-input::-webkit-datetime-edit-text {
+    color: #6b7280;
+  }
+
+  .datetime-input::placeholder {
+    color: #6b7280;
+    opacity: 0.7;
+  }
+
+  /* ============================================
+     ESTADOS DEL INPUT
+     ============================================ */
+  
+  /* Estado de error */
+  .datetime-input.invalid {
+    border-color: #dc2626 !important;
+    background-color: #7f1d1d20 !important;
+  }
+
+  .datetime-input.invalid::-webkit-calendar-picker-indicator {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%23dc2626' viewBox='0 0 24 24'%3E%3Cpath d='M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM5 8V6h14v2H5zm2 4h2v2H7v-2zm4 0h2v2h-2v-2zm4 0h2v2h-2v-2z'/%3E%3C/svg%3E");
+  }
+
+  /* Estado válido */
+  .datetime-input.valid {
+    border-color: #6B8E23 !important;
+    background-color: #6B8E2310 !important;
+  }
+
+  .datetime-input.valid::-webkit-calendar-picker-indicator {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%236B8E23' viewBox='0 0 24 24'%3E%3Cpath d='M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zM5 8V6h14v2H5zm2 4h2v2H7v-2zm4 0h2v2h-2v-2zm4 0h2v2h-2v-2z'/%3E%3C/svg%3E");
+  }
+
+  /* Focus */
+  .datetime-input:focus {
+    outline: none;
+    border-color: #6B8E23 !important;
+    box-shadow: 0 0 0 3px rgba(107, 142, 35, 0.1);
+  }
+
+  /* ============================================
+     CALENDARIO DESPLEGABLE (Chrome/Edge)
+     ============================================ */
+  
+  /* Nota: Los estilos del calendario desplegable son limitados 
+     porque son componentes nativos del navegador, pero podemos
+     mejorar la apariencia del input y el icono */
+
+  /* Animación al abrir */
+  .datetime-input::-webkit-calendar-picker-indicator {
+    animation: fadeIn 0.3s ease;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+    to {
+      opacity: 0.8;
+      transform: scale(1);
+    }
+  }
+
+  /* ============================================
+     RESPONSIVE
+     ============================================ */
+  
+  @media (max-width: 640px) {
+    .datetime-input {
+      font-size: 14px;
+    }
+
+    .datetime-input::-webkit-calendar-picker-indicator {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  /* ============================================
+     FIREFOX SUPPORT
+     ============================================ */
+  
+  /* Firefox no soporta ::webkit, pero respeta los estilos básicos */
+  @-moz-document url-prefix() {
+    .datetime-input {
+      color-scheme: dark;
+    }
+  }
+</style>
+
+<script>
+  $(document).ready(function() {
+    // Apply Select2 for better UX
+    {% if rol == 'Veterinario' or rol == 'Administrador' %}
+      $('#paciente').select2({
+        placeholder: 'Search for a pet...',
+        allowClear: true,
+        width: '100%'
+      });
+    {% endif %}
+    
+    $('#veterinario').select2({
+      placeholder: 'Select a veterinarian...',
+      allowClear: true,
+      width: '100%'
+    });
+
+    // ============================================
+    // VALIDACIÓN DE FECHAS
+    // ============================================
+    const fechaInput = document.getElementById('fecha');
+    const dateWarning = document.getElementById('dateWarning');
+    const dateWarningText = document.getElementById('dateWarningText');
+    const submitBtn = document.getElementById('submitBtn');
+
+    function validateDateTime(dateString) {
+      if (!dateString) {
+        return { valid: false, message: '' };
+      }
+
+      const selectedDate = new Date(dateString);
+      const now = new Date();
+      
+      // Agregar 1 hora al tiempo actual (mínimo 1 hora de anticipación)
+      const minimumDate = new Date(now.getTime() + (60 * 60 * 1000));
+
+      // Verificar si la fecha es en el pasado o muy cercana
+      if (selectedDate < minimumDate) {
+        return { 
+          valid: false, 
+          message: 'Appointments must be scheduled at least 1 hour in advance.' 
+        };
+      }
+
+      // Obtener día de la semana (0 = domingo, 6 = sábado)
+      const dayOfWeek = selectedDate.getDay();
+      
+      // Verificar si es fin de semana
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        return { 
+          valid: false, 
+          message: 'Appointments are only available Monday through Friday.' 
+        };
+      }
+
+      // Obtener hora (formato 24h)
+      const hours = selectedDate.getHours();
+      const minutes = selectedDate.getMinutes();
+      const timeInMinutes = hours * 60 + minutes;
+
+      // Verificar horario de oficina (8:00 AM - 7:00 PM)
+      const openingTime = 8 * 60;  // 8:00 AM = 480 minutos
+      const closingTime = 19 * 60; // 7:00 PM = 1140 minutos
+
+      if (timeInMinutes < openingTime || timeInMinutes >= closingTime) {
+        return { 
+          valid: false, 
+          message: 'Appointments must be between 8:00 AM and 7:00 PM.' 
+        };
+      }
+
+      // Verificar horario de almuerzo (12:00 PM - 2:00 PM)
+      const lunchStart = 12 * 60;  // 12:00 PM = 720 minutos
+      const lunchEnd = 14 * 60;    // 2:00 PM = 840 minutos
+
+      if (timeInMinutes >= lunchStart && timeInMinutes < lunchEnd) {
+        return { 
+          valid: false, 
+          message: 'No appointments during lunch break (12:00 PM - 2:00 PM).' 
+        };
+      }
+
+      return { valid: true, message: '' };
+    }
+
+    function showDateError(message) {
+      fechaInput.classList.add('invalid');
+      fechaInput.classList.remove('valid');
+      dateWarningText.textContent = message;
+      dateWarning.classList.remove('hidden');
+      submitBtn.disabled = true;
+    }
+
+    function clearDateError() {
+      fechaInput.classList.remove('invalid');
+      fechaInput.classList.add('valid');
+      dateWarning.classList.add('hidden');
+      submitBtn.disabled = false;
+    }
+
+    // Validar cuando cambia la fecha
+    fechaInput.addEventListener('change', function() {
+      const validation = validateDateTime(this.value);
+      
+      if (!validation.valid && validation.message) {
+        showDateError(validation.message);
+      } else {
+        clearDateError();
+      }
+      
+      updateSummary();
+    });
+
+    // Validar también al escribir
+    fechaInput.addEventListener('blur', function() {
+      const validation = validateDateTime(this.value);
+      
+      if (!validation.valid && validation.message) {
+        showDateError(validation.message);
+      } else {
+        clearDateError();
+      }
+    });
+
+    // Prevenir envío del formulario si la fecha es inválida
+    document.getElementById('appointmentForm').addEventListener('submit', function(e) {
+      const validation = validateDateTime(fechaInput.value);
+      
+      if (!validation.valid) {
+        e.preventDefault();
+        if (validation.message) {
+          showDateError(validation.message);
+        } else {
+          showDateError('Please select a valid date and time.');
+        }
+        
+        // Scroll al campo de fecha
+        fechaInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        fechaInput.focus();
+        
+        return false;
+      }
+    });
+
+    // ============================================
+    // UPDATE SUMMARY PREVIEW
+    // ============================================
+    function updateSummary() {
+      // Pet
+      const petSelect = document.getElementById('paciente');
+      const petText = petSelect.options[petSelect.selectedIndex]?.text || 'Select a pet...';
+      document.getElementById('summaryPet').textContent = petText;
+
+      // Veterinarian
+      const vetSelect = document.getElementById('veterinario');
+      const vetText = vetSelect.options[vetSelect.selectedIndex]?.text || 'Select veterinarian...';
+      document.getElementById('summaryVet').textContent = vetText;
+
+      // Date
+      const dateInput = document.getElementById('fecha');
+      if (dateInput.value) {
+        const date = new Date(dateInput.value);
+        const formatted = date.toLocaleDateString('en-US', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        document.getElementById('summaryDate').textContent = formatted;
+      } else {
+        document.getElementById('summaryDate').textContent = 'Select date...';
+      }
+    }
+
+    // Event listeners
+    $('#paciente, #veterinario').on('change', updateSummary);
+    document.getElementById('fecha').addEventListener('change', updateSummary);
+
+    // Initialize summary
+    updateSummary();
+
+    // Animación de entrada
+    const form = document.getElementById('appointmentForm');
+    form.style.opacity = '0';
+    form.style.transform = 'translateY(20px)';
+    
+    setTimeout(() => {
+      form.style.transition = 'all 0.5s ease-in-out';
+      form.style.opacity = '1';
+      form.style.transform = 'translateY(0)';
+    }, 100);
+  });
+</script>
+
+{% endblock %}

@@ -1,0 +1,820 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="space-y-6 max-w-7xl mx-auto px-4 sm:px-6">
+  
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold text-white flex items-center">
+        <i class="fas fa-calendar-alt text-olive-500 mr-3"></i>
+        {% if rol == 'Administrador' %}
+          All Appointments
+        {% elif rol == 'Veterinario' %}
+          My Appointments
+        {% else %}
+          My Appointments
+        {% endif %}
+      </h1>
+      <p class="text-gray-400 mt-1 text-sm sm:text-base">Manage and track appointments</p>
+    </div>
+    
+    <a href="{% url 'add_cita' %}" 
+       class="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-olive-700 to-olive-600 
+              hover:from-olive-600 hover:to-olive-500 text-white font-semibold px-4 sm:px-6 py-2 sm:py-3 rounded-lg
+              transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-olive-500/50
+              w-full sm:w-auto text-sm sm:text-base">
+      <i class="fas fa-plus-circle"></i>
+      <span>New Appointment</span>
+    </a>
+  </div>
+
+  <!-- Mensajes -->
+  {% if messages %}
+    {% for message in messages %}
+      <div class="p-3 sm:p-4 rounded-lg {% if message.tags == 'success' %}bg-green-900/30 border border-green-700 text-green-300{% else %}bg-red-900/30 border border-red-700 text-red-300{% endif %} text-sm sm:text-base">
+        <i class="fas {% if message.tags == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %} mr-2"></i>
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  {% if citas %}
+    <!-- Stats rápidas - Mobile optimized -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+      <div class="bg-dark-800 border border-dark-700 rounded-xl p-3 sm:p-4 flex items-center space-x-2 sm:space-x-4">
+        <div class="w-8 h-8 sm:w-12 sm:h-12 bg-blue-700 rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-calendar-check text-white text-sm sm:text-xl"></i>
+        </div>
+        <div class="min-w-0">
+          <p class="text-gray-400 text-xs sm:text-sm truncate">Total</p>
+          <p class="text-lg sm:text-2xl font-bold text-white" id="totalCitas">{{ total_citas }}</p>
+        </div>
+      </div>
+      
+      <div class="bg-dark-800 border border-dark-700 rounded-xl p-3 sm:p-4 flex items-center space-x-2 sm:space-x-4">
+        <div class="w-8 h-8 sm:w-12 sm:h-12 bg-yellow-700 rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-clock text-white text-sm sm:text-xl"></i>
+        </div>
+        <div class="min-w-0">
+          <p class="text-gray-400 text-xs sm:text-sm truncate">Pending</p>
+          <p class="text-lg sm:text-2xl font-bold text-white">{{ pendientes }}</p>
+        </div>
+      </div>
+
+      <div class="bg-dark-800 border border-dark-700 rounded-xl p-3 sm:p-4 flex items-center space-x-2 sm:space-x-4">
+        <div class="w-8 h-8 sm:w-12 sm:h-12 bg-green-700 rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-check-circle text-white text-sm sm:text-xl"></i>
+        </div>
+        <div class="min-w-0">
+          <p class="text-gray-400 text-xs sm:text-sm truncate">Completed</p>
+          <p class="text-lg sm:text-2xl font-bold text-white">{{ completadas }}</p>
+        </div>
+      </div>
+
+      <div class="bg-dark-800 border border-dark-700 rounded-xl p-3 sm:p-4 flex items-center space-x-2 sm:space-x-4">
+        <div class="w-8 h-8 sm:w-12 sm:h-12 bg-red-700 rounded-lg flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-times-circle text-white text-sm sm:text-xl"></i>
+        </div>
+        <div class="min-w-0">
+          <p class="text-gray-400 text-xs sm:text-sm truncate">Cancelled</p>
+          <p class="text-lg sm:text-2xl font-bold text-white">{{ canceladas }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Buscador Avanzado - Mobile optimized -->
+    <div class="bg-dark-800 border border-dark-700 rounded-xl p-4 sm:p-6 shadow-xl">
+      <div class="flex flex-col gap-3 sm:gap-4">
+        <!-- Fila 1: Search Input -->
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div class="flex-1 relative">
+            <i class="fas fa-search absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm sm:text-base"></i>
+            <input type="text" 
+                   id="searchInput"
+                   placeholder="Search appointments..."
+                   class="w-full bg-dark-900 border border-dark-600 rounded-lg pl-10 sm:pl-12 pr-4 py-2 sm:py-3 text-white text-sm sm:text-base
+                          focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                          transition-all duration-300"
+                   oninput="searchAppointments()">
+          </div>
+
+          <!-- Clear Button -->
+          <button onclick="clearSearch()"
+                  class="bg-dark-900 hover:bg-dark-700 text-gray-300 hover:text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg
+                         transition-all duration-300 border border-dark-600 hover:border-olive-600
+                         text-sm sm:text-base flex items-center justify-center space-x-2">
+            <i class="fas fa-times"></i>
+            <span class="sm:inline">Clear</span>
+          </button>
+        </div>
+
+        <!-- Fila 2: Filters -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <!-- Filter by Status -->
+          <div>
+            <select id="statusFilter" 
+                    onchange="searchAppointments()"
+                    class="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-white text-sm sm:text-base
+                           focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                           transition-all duration-300">
+              <option value="">All Statuses</option>
+              <option value="Pendiente">🟡 Pending</option>
+              <option value="Completada">🟢 Completed</option>
+              <option value="Cancelada">🔴 Cancelled</option>
+            </select>
+          </div>
+
+          <!-- Filter by Date Range -->
+          <div>
+            <select id="dateFilter" 
+                    onchange="searchAppointments()"
+                    class="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-white text-sm sm:text-base
+                           focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                           transition-all duration-300">
+              <option value="">All Dates</option>
+              <option value="today">📅 Today</option>
+              <option value="week">📆 This Week</option>
+              <option value="month">🗓️ This Month</option>
+              <option value="past">⏮️ Past</option>
+              <option value="upcoming">⏭️ Upcoming</option>
+            </select>
+          </div>
+
+          <!-- Sort Order -->
+          <div>
+            <select id="sortOrder" 
+                    onchange="sortAppointments()"
+                    class="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-white text-sm sm:text-base
+                           focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                           transition-all duration-300">
+              <option value="desc">⬇️ Newest First</option>
+              <option value="asc">⬆️ Oldest First</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Search Results Counter -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pt-2 border-t border-dark-700">
+          <p class="text-xs sm:text-sm text-gray-400">
+            <span id="resultCount">{{ citas|length }}</span> appointments found
+          </p>
+          <p class="text-xs text-gray-500 hidden sm:block">
+            <i class="fas fa-info-circle mr-1"></i>
+            Search across pet, vet, reason, and date
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Lista de citas - Mobile Cards / Desktop Table -->
+    <div class="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden shadow-xl">
+      
+      <!-- Desktop Table (hidden on mobile) -->
+      <div class="hidden md:block overflow-x-auto">
+        <table class="min-w-full" id="appointmentsTable">
+          <thead class="bg-dark-900 border-b border-dark-700">
+            <tr>
+              <th class="px-4 sm:px-6 py-3 text-left text-sm font-semibold text-gray-300">
+                <i class="fas fa-paw text-olive-500 mr-2"></i>Pet
+              </th>
+              <th class="px-4 sm:px-6 py-3 text-left text-sm font-semibold text-gray-300">
+                <i class="fas fa-user-md text-olive-500 mr-2"></i>Veterinarian
+              </th>
+              <th class="px-4 sm:px-6 py-3 text-left text-sm font-semibold text-gray-300">
+                <i class="fas fa-calendar text-olive-500 mr-2"></i>Date & Time
+              </th>
+              <th class="px-4 sm:px-6 py-3 text-left text-sm font-semibold text-gray-300">
+                <i class="fas fa-notes-medical text-olive-500 mr-2"></i>Reason
+              </th>
+              <th class="px-4 sm:px-6 py-3 text-left text-sm font-semibold text-gray-300">
+                <i class="fas fa-info-circle text-olive-500 mr-2"></i>Status
+              </th>
+              <th class="px-4 sm:px-6 py-3 text-center text-sm font-semibold text-gray-300">
+                <i class="fas fa-cog text-olive-500 mr-2"></i>Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-dark-700">
+            {% for c in citas %}
+              <tr class="appointment-row hover:bg-dark-900 transition-colors group"
+                  data-pet="{{ c.mascota_nombre|lower }}"
+                  data-vet="{{ c.veterinario_nombre|lower }}"
+                  data-reason="{{ c.motivo|lower }}"
+                  data-status="{{ c.estado }}"
+                  data-date="{{ c.fecha }}"
+                  data-datetime="{{ c.fecha_original }}">
+                <!-- Pet -->
+                <td class="px-4 sm:px-6 py-3">
+                  <div class="flex items-center space-x-2 sm:space-x-3">
+                    <div class="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-olive-700 to-olive-600 
+                                flex items-center justify-center flex-shrink-0">
+                      <i class="fas fa-paw text-white text-sm"></i>
+                    </div>
+                    <div class="min-w-0">
+                      <p class="text-white font-medium pet-name truncate text-sm sm:text-base">{{ c.mascota_nombre }}</p>
+                      <p class="text-gray-500 text-xs">{{ c.mascota_especie|default:"Pet" }}</p>
+                    </div>
+                  </div>
+                </td>
+
+                <!-- Veterinarian -->
+                <td class="px-4 sm:px-6 py-3">
+                  <div class="flex items-center space-x-2">
+                    <i class="fas fa-user-md text-purple-500 text-sm"></i>
+                    <span class="text-gray-300 vet-name truncate text-sm sm:text-base">{{ c.veterinario_nombre }}</span>
+                  </div>
+                </td>
+
+                <!-- Date & Time -->
+                <td class="px-4 sm:px-6 py-3">
+                  <div class="flex flex-col">
+                    <span class="text-white font-medium text-sm sm:text-base">{{ c.fecha }}</span>
+                    <span class="text-gray-400 text-xs">{{ c.hora }}</span>
+                  </div>
+                </td>
+
+                <!-- Reason -->
+                <td class="px-4 sm:px-6 py-3">
+                  <p class="text-gray-300 text-xs sm:text-sm line-clamp-2 reason-text">{{ c.motivo }}</p>
+                </td>
+
+                <!-- Status -->
+                <td class="px-4 sm:px-6 py-3">
+                  {% if c.estado == 'Pendiente' %}
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold
+                                 bg-yellow-700/30 text-yellow-400 border border-yellow-700">
+                      <i class="fas fa-clock mr-1"></i>
+                      <span class="hidden sm:inline">Pending</span>
+                      <span class="sm:hidden">Pend</span>
+                    </span>
+                  {% elif c.estado == 'Completada' %}
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold
+                                 bg-green-700/30 text-green-400 border border-green-700">
+                      <i class="fas fa-check-circle mr-1"></i>
+                      <span class="hidden sm:inline">Completed</span>
+                      <span class="sm:hidden">Done</span>
+                    </span>
+                  {% elif c.estado == 'Cancelada' %}
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold
+                                 bg-red-700/30 text-red-400 border border-red-700">
+                      <i class="fas fa-times-circle mr-1"></i>
+                      <span class="hidden sm:inline">Cancelled</span>
+                      <span class="sm:hidden">Cancel</span>
+                    </span>
+                  {% else %}
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold
+                                 bg-gray-700/30 text-gray-400 border border-gray-700">
+                      <i class="fas fa-question-circle mr-1"></i>
+                      <span class="hidden sm:inline">Unknown</span>
+                      <span class="sm:hidden">?</span>
+                    </span>
+                  {% endif %}
+                </td>
+
+                <!-- Actions -->
+                <td class="px-4 sm:px-6 py-3">
+                  {% if c.id_str %}
+                    <div class="flex items-center justify-center space-x-1 sm:space-x-2">
+                      <!-- Edit Button (solo si está pendiente Y tiene permisos) -->
+                      {% if c.puede_editar and c.estado == 'Pendiente' %}
+                        <a href="{% url 'edit_cita' c.id_str %}" 
+                           class="bg-olive-700 hover:bg-olive-600 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg
+                                  transition-colors duration-300 text-xs sm:text-sm font-medium inline-flex items-center"
+                           title="Edit appointment">
+                          <i class="fas fa-edit sm:mr-1"></i>
+                          <span class="hidden sm:inline">Edit</span>
+                        </a>
+                      {% endif %}
+                      
+                      <!-- Cancel Button (solo si está pendiente Y tiene permisos) -->
+                      {% if c.puede_cancelar and c.estado == 'Pendiente' %}
+                        <button onclick="confirmCancel('{{ c.id_str }}', '{{ c.mascota_nombre|escapejs }}')"
+                                class="bg-orange-900/50 hover:bg-orange-900 text-orange-300 hover:text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg
+                                       transition-colors duration-300 text-xs sm:text-sm font-medium border border-orange-700 inline-flex items-center"
+                                title="Cancel appointment">
+                          <i class="fas fa-ban sm:mr-1"></i>
+                          <span class="hidden sm:inline">Cancel</span>
+                        </button>
+                      {% endif %}
+                      
+                      <!-- Si la cita ya está cancelada o completada, mostrar SOLO el estado -->
+                      {% if c.estado != 'Pendiente' %}
+                        <span class="text-gray-500 text-xs italic hidden sm:inline">
+                          {% if c.estado == 'Completada' %}
+                            <i class="fas fa-check-circle text-green-500 mr-1"></i>Completed
+                          {% elif c.estado == 'Cancelada' %}
+                            <i class="fas fa-ban text-red-500 mr-1"></i>Cancelled
+                          {% endif %}
+                        </span>
+                        <span class="text-gray-500 text-xs sm:hidden">
+                          {% if c.estado == 'Completada' %}✅{% elif c.estado == 'Cancelada' %}❌{% endif %}
+                        </span>
+                      {% endif %}
+                      
+                      <!-- Si está pendiente pero no tiene permisos -->
+                      {% if c.estado == 'Pendiente' and not c.puede_editar and not c.puede_cancelar %}
+                        <span class="text-gray-500 text-xs italic">No access</span>
+                      {% endif %}
+                    </div>
+                  {% else %}
+                    <span class="text-gray-500 text-xs italic">No actions</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Mobile Cards (hidden on desktop) -->
+      <div class="md:hidden space-y-3 p-4" id="mobileAppointmentsList">
+        {% for c in citas %}
+          <div class="bg-dark-900 border border-dark-700 rounded-xl p-4 appointment-row mobile-appointment-card"
+               data-pet="{{ c.mascota_nombre|lower }}"
+               data-vet="{{ c.veterinario_nombre|lower }}"
+               data-reason="{{ c.motivo|lower }}"
+               data-status="{{ c.estado }}"
+               data-date="{{ c.fecha }}"
+               data-datetime="{{ c.fecha_original }}">
+            
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center space-x-3 flex-1 min-w-0">
+                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-olive-700 to-olive-600 
+                            flex items-center justify-center flex-shrink-0">
+                  <i class="fas fa-paw text-white"></i>
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="text-white font-medium pet-name truncate">{{ c.mascota_nombre }}</p>
+                  <p class="text-gray-400 text-xs truncate">{{ c.mascota_especie|default:"Pet" }}</p>
+                </div>
+              </div>
+              
+              <!-- Status Badge -->
+              {% if c.estado == 'Pendiente' %}
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold
+                             bg-yellow-700/30 text-yellow-400 border border-yellow-700">
+                  <i class="fas fa-clock mr-1"></i>Pend
+                </span>
+              {% elif c.estado == 'Completada' %}
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold
+                             bg-green-700/30 text-green-400 border border-green-700">
+                  <i class="fas fa-check-circle mr-1"></i>Done
+                </span>
+              {% elif c.estado == 'Cancelada' %}
+                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold
+                             bg-red-700/30 text-red-400 border border-red-700">
+                  <i class="fas fa-times-circle mr-1"></i>Cancel
+                </span>
+              {% endif %}
+            </div>
+
+            <!-- Details -->
+            <div class="space-y-2 mb-3">
+              <!-- Veterinarian -->
+              <div class="flex items-center text-gray-300 text-sm">
+                <i class="fas fa-user-md text-purple-500 mr-2 w-4"></i>
+                <span class="truncate vet-name">{{ c.veterinario_nombre }}</span>
+              </div>
+              
+              <!-- Date & Time -->
+              <div class="flex items-center text-gray-300 text-sm">
+                <i class="fas fa-calendar text-olive-500 mr-2 w-4"></i>
+                <span>{{ c.fecha }} at {{ c.hora }}</span>
+              </div>
+              
+              <!-- Reason -->
+              <div class="flex items-start text-gray-300 text-sm">
+                <i class="fas fa-notes-medical text-olive-500 mr-2 w-4 mt-0.5"></i>
+                <span class="reason-text line-clamp-2">{{ c.motivo }}</span>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center justify-between pt-3 border-t border-dark-700">
+              <div class="text-xs text-gray-500">
+                ID: {{ c.id_str|default:c.id }}
+              </div>
+              <div class="flex items-center space-x-2">
+                {% if c.id_str %}
+                  <!-- Edit Button -->
+                  {% if c.puede_editar and c.estado == 'Pendiente' %}
+                    <a href="{% url 'edit_cita' c.id_str %}" 
+                       class="bg-olive-700 hover:bg-olive-600 text-white px-3 py-1.5 rounded-lg
+                              transition-colors duration-300 text-xs font-medium inline-flex items-center"
+                       title="Edit appointment">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                  {% endif %}
+                  
+                  <!-- Cancel Button -->
+                  {% if c.puede_cancelar and c.estado == 'Pendiente' %}
+                    <button onclick="confirmCancel('{{ c.id_str }}', '{{ c.mascota_nombre|escapejs }}')"
+                            class="bg-orange-900/50 hover:bg-orange-900 text-orange-300 hover:text-white px-3 py-1.5 rounded-lg
+                                   transition-colors duration-300 text-xs font-medium border border-orange-700 inline-flex items-center"
+                            title="Cancel appointment">
+                      <i class="fas fa-ban"></i>
+                    </button>
+                  {% endif %}
+                  
+                  <!-- Status only for non-pending -->
+                  {% if c.estado != 'Pendiente' %}
+                    <span class="text-gray-500 text-xs">
+                      {% if c.estado == 'Completada' %}✅{% elif c.estado == 'Cancelada' %}❌{% endif %}
+                    </span>
+                  {% endif %}
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <!-- No Results Message -->
+      <div id="noResults" class="hidden p-8 sm:p-12 text-center">
+        <div class="max-w-md mx-auto">
+          <div class="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 bg-dark-700 rounded-full flex items-center justify-center">
+            <i class="fas fa-search text-gray-600 text-2xl sm:text-3xl"></i>
+          </div>
+          <h3 class="text-lg sm:text-xl font-bold text-white mb-2">No appointments found</h3>
+          <p class="text-gray-400 mb-4 text-sm sm:text-base">
+            Try adjusting your search terms or filters
+          </p>
+          <button onclick="clearSearch()"
+                  class="bg-olive-700 hover:bg-olive-600 text-white px-4 sm:px-6 py-2 rounded-lg
+                         transition-colors duration-300 text-sm sm:text-base">
+            <i class="fas fa-redo mr-2"></i>Clear Search
+          </button>
+        </div>
+      </div>
+    </div>
+
+  {% else %}
+    <!-- Estado vacío -->
+    <div class="bg-dark-800 border border-dark-700 rounded-2xl p-8 sm:p-12 text-center">
+      <div class="max-w-md mx-auto">
+        <div class="w-24 h-24 sm:w-32 sm:h-32 mx-auto mb-6 bg-gradient-to-br from-blue-800 to-blue-700 rounded-full 
+                    flex items-center justify-center shadow-2xl">
+          <i class="fas fa-calendar-times text-white text-3xl sm:text-5xl"></i>
+        </div>
+
+        <h3 class="text-xl sm:text-2xl font-bold text-white mb-3">No Appointments Yet</h3>
+        <p class="text-gray-400 mb-6 text-sm sm:text-base">
+          Schedule your first appointment to get started.
+        </p>
+
+        <a href="{% url 'add_cita' %}" 
+           class="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-olive-700 to-olive-600 
+                  hover:from-olive-600 hover:to-olive-500 text-white font-semibold px-6 sm:px-8 py-3 rounded-lg
+                  transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-olive-500/50
+                  w-full sm:w-auto text-sm sm:text-base">
+          <i class="fas fa-plus-circle"></i>
+          <span>Schedule Appointment</span>
+        </a>
+      </div>
+    </div>
+  {% endif %}
+
+</div>
+
+<!-- Modal de Confirmación de Cancelación - Mobile optimized -->
+<div id="cancelModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-dark-800 border border-dark-700 rounded-2xl max-w-md w-full shadow-2xl transform transition-all scale-95 mx-4"
+       onclick="event.stopPropagation()">
+    
+    <div class="p-4 sm:p-6">
+      <!-- Icon -->
+      <div class="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-4 bg-orange-900/30 rounded-full flex items-center justify-center">
+        <i class="fas fa-exclamation-triangle text-orange-400 text-2xl sm:text-3xl"></i>
+      </div>
+
+      <!-- Title -->
+      <h3 class="text-lg sm:text-xl font-bold text-white mb-2 text-center">Cancel Appointment?</h3>
+      
+      <!-- Message -->
+      <p class="text-gray-400 mb-1 text-center text-sm sm:text-base" id="cancelMessage">
+        Are you sure you want to cancel the appointment for <strong class="text-white" id="cancelPetName"></strong>?
+      </p>
+      <p class="text-gray-500 text-xs sm:text-sm mb-4 sm:mb-6 text-center">
+        This action cannot be undone.
+      </p>
+
+      <!-- Buttons -->
+      <div class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+        <button onclick="closeModal()"
+                class="flex-1 bg-dark-900 hover:bg-dark-700 text-gray-300 hover:text-white py-2 sm:py-3 rounded-lg
+                       transition-colors duration-300 font-medium border border-dark-600 text-sm sm:text-base">
+          <i class="fas fa-times mr-2"></i>No, Keep It
+        </button>
+        <button onclick="executeCancellation()"
+                class="flex-1 bg-orange-700 hover:bg-orange-600 text-white py-2 sm:py-3 rounded-lg
+                       transition-colors duration-300 font-medium text-sm sm:text-base">
+          <i class="fas fa-ban mr-2"></i>Yes, Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Script para animaciones y modal -->
+<script>
+  let appointmentToCancel = null;
+  let allRows = [];
+  let allMobileCards = [];
+
+  document.addEventListener('DOMContentLoaded', function() {
+    // Guardar todas las filas y cards
+    allRows = Array.from(document.querySelectorAll('.appointment-row'));
+    allMobileCards = Array.from(document.querySelectorAll('.mobile-appointment-card'));
+    
+    // Ordenar por defecto (más reciente primero)
+    sortAppointments();
+    
+    // Animación de entrada para las filas desktop
+    const rows = document.querySelectorAll('.appointment-row');
+    rows.forEach((row, index) => {
+      row.style.opacity = '0';
+      row.style.transform = 'translateX(-20px)';
+      
+      setTimeout(() => {
+        row.style.transition = 'all 0.5s ease-in-out';
+        row.style.opacity = '1';
+        row.style.transform = 'translateX(0)';
+      }, index * 50);
+    });
+
+    // Animación de entrada para las cards mobile
+    const mobileCards = document.querySelectorAll('.mobile-appointment-card');
+    mobileCards.forEach((card, index) => {
+      card.style.opacity = '0';
+      card.style.transform = 'translateY(20px)';
+      
+      setTimeout(() => {
+        card.style.transition = 'all 0.5s ease-in-out';
+        card.style.opacity = '1';
+        card.style.transform = 'translateY(0)';
+      }, index * 50);
+    });
+
+    // Close modal on outside click
+    const modal = document.getElementById('cancelModal');
+    if (modal) {
+      modal.addEventListener('click', function(e) {
+        if (e.target === this) {
+          closeModal();
+        }
+      });
+    }
+
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        closeModal();
+      }
+      
+      // Ctrl/Cmd + K para focus en búsqueda
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('searchInput').focus();
+      }
+    });
+  });
+
+  // ============================================
+  // FUNCIÓN DE BÚSQUEDA Y FILTRADO
+  // ============================================
+  function searchAppointments() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+    const statusFilter = document.getElementById('statusFilter').value;
+    const dateFilter = document.getElementById('dateFilter').value;
+    
+    let visibleCount = 0;
+    const now = new Date();
+
+    // Search in desktop table
+    allRows.forEach(row => {
+      const matches = shouldShowAppointment(row, searchTerm, statusFilter, dateFilter, now);
+      row.style.display = matches ? '' : 'none';
+      if (matches) visibleCount++;
+    });
+
+    // Search in mobile cards
+    allMobileCards.forEach(card => {
+      const matches = shouldShowAppointment(card, searchTerm, statusFilter, dateFilter, now);
+      card.style.display = matches ? '' : 'none';
+      if (matches) visibleCount++;
+    });
+
+    // Actualizar contador
+    document.getElementById('resultCount').textContent = visibleCount;
+    document.getElementById('totalCitas').textContent = visibleCount;
+
+    // Mostrar/ocultar mensaje de "no results"
+    const noResults = document.getElementById('noResults');
+    const table = document.getElementById('appointmentsTable')?.closest('.bg-dark-800');
+    const mobileList = document.getElementById('mobileAppointmentsList');
+    
+    if (visibleCount === 0) {
+      if (table) table.style.display = 'none';
+      if (mobileList) mobileList.style.display = 'none';
+      noResults.classList.remove('hidden');
+    } else {
+      if (table) table.style.display = 'block';
+      if (mobileList) mobileList.style.display = 'block';
+      noResults.classList.add('hidden');
+    }
+  }
+
+  // Helper function to check if appointment should be shown
+  function shouldShowAppointment(element, searchTerm, statusFilter, dateFilter, now) {
+    const pet = element.dataset.pet || '';
+    const vet = element.dataset.vet || '';
+    const reason = element.dataset.reason || '';
+    const status = element.dataset.status || '';
+    const dateStr = element.dataset.datetime || '';
+
+    // Búsqueda en texto
+    const matchesSearch = !searchTerm || 
+      pet.includes(searchTerm) ||
+      vet.includes(searchTerm) ||
+      reason.includes(searchTerm);
+
+    // Filtro por estado
+    const matchesStatus = !statusFilter || status === statusFilter;
+
+    // Filtro por fecha
+    let matchesDate = true;
+    if (dateFilter && dateStr) {
+      const appointmentDate = new Date(dateStr);
+      
+      switch(dateFilter) {
+        case 'today':
+          const today = new Date();
+          matchesDate = appointmentDate.toDateString() === today.toDateString();
+          break;
+        case 'week':
+          const weekAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+          const weekAhead = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000));
+          matchesDate = appointmentDate >= weekAgo && appointmentDate <= weekAhead;
+          break;
+        case 'month':
+          matchesDate = appointmentDate.getMonth() === now.getMonth() && 
+                       appointmentDate.getFullYear() === now.getFullYear();
+          break;
+        case 'past':
+          matchesDate = appointmentDate < now;
+          break;
+        case 'upcoming':
+          matchesDate = appointmentDate >= now;
+          break;
+      }
+    }
+
+    return matchesSearch && matchesStatus && matchesDate;
+  }
+
+  // ============================================
+  // FUNCIÓN DE ORDENAMIENTO
+  // ============================================
+  function sortAppointments() {
+    const sortOrder = document.getElementById('sortOrder').value;
+    const tbody = document.querySelector('#appointmentsTable tbody');
+    const mobileList = document.getElementById('mobileAppointmentsList');
+    
+    // Ordenar el array de filas desktop
+    allRows.sort((a, b) => {
+      const dateA = new Date(a.dataset.datetime || '1970-01-01');
+      const dateB = new Date(b.dataset.datetime || '1970-01-01');
+      
+      if (sortOrder === 'desc') {
+        return dateB - dateA; // Más reciente primero
+      } else {
+        return dateA - dateB; // Más antigua primero
+      }
+    });
+    
+    // Ordenar el array de cards mobile
+    allMobileCards.sort((a, b) => {
+      const dateA = new Date(a.dataset.datetime || '1970-01-01');
+      const dateB = new Date(b.dataset.datetime || '1970-01-01');
+      
+      if (sortOrder === 'desc') {
+        return dateB - dateA; // Más reciente primero
+      } else {
+        return dateA - dateB; // Más antigua primero
+      }
+    });
+    
+    // Re-agregar las filas en el nuevo orden
+    if (tbody) {
+      allRows.forEach(row => {
+        tbody.appendChild(row);
+      });
+    }
+    
+    // Re-agregar las cards en el nuevo orden
+    if (mobileList) {
+      allMobileCards.forEach(card => {
+        mobileList.appendChild(card);
+      });
+    }
+    
+    // Re-aplicar búsqueda si hay filtros activos
+    searchAppointments();
+  }
+
+  // ============================================
+  // LIMPIAR BÚSQUEDA
+  // ============================================
+  function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('dateFilter').value = '';
+    document.getElementById('sortOrder').value = 'desc';
+    sortAppointments();
+  }
+
+  // Búsqueda en tiempo real con debounce
+  let searchTimeout;
+  document.getElementById('searchInput').addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(searchAppointments, 300);
+  });
+
+  // ============================================
+  // MODAL DE CANCELACIÓN
+  // ============================================
+  function confirmCancel(appointmentId, petName) {
+    appointmentToCancel = appointmentId;
+    document.getElementById('cancelPetName').textContent = petName;
+    
+    const modal = document.getElementById('cancelModal');
+    modal.classList.remove('hidden');
+    
+    setTimeout(() => {
+      modal.querySelector('div > div').classList.remove('scale-95');
+      modal.querySelector('div > div').classList.add('scale-100');
+    }, 10);
+  }
+
+  function closeModal() {
+    const modal = document.getElementById('cancelModal');
+    modal.querySelector('div > div').classList.remove('scale-100');
+    modal.querySelector('div > div').classList.add('scale-95');
+    
+    setTimeout(() => {
+      modal.classList.add('hidden');
+      appointmentToCancel = null;
+    }, 200);
+  }
+
+  function executeCancellation() {
+    if (appointmentToCancel) {
+      // Redirect to cancel URL
+      window.location.href = `/citas/cancel/${appointmentToCancel}/`;
+    }
+  }
+</script>
+
+<style>
+  @media (max-width: 768px) {
+    .mobile-appointment-card {
+      animation: cardSlideIn 0.3s ease-out;
+    }
+  }
+
+  @keyframes cardSlideIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  #cancelModal > div {
+    transition: transform 0.3s ease-in-out;
+  }
+
+  .appointment-row {
+    transition: all 0.3s ease-in-out;
+  }
+
+  /* Mejor scroll en mobile */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Asegurar que el texto se trunque correctamente */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+</style>
+
+{% endblock %}

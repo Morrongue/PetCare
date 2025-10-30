@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="max-w-4xl mx-auto space-y-6">
+  
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-3xl font-bold text-white flex items-center">
+        <i class="fas fa-user-edit text-olive-500 mr-3"></i>
+        Edit Profile
+      </h1>
+      <p class="text-gray-400 mt-1">Update your account information</p>
+    </div>
+    
+    <a href="{% url 'index' %}" 
+       class="inline-flex items-center space-x-2 bg-dark-800 border border-dark-600
+              hover:border-olive-600 text-gray-300 hover:text-white font-semibold px-6 py-3 rounded-lg
+              transition-all duration-300">
+      <i class="fas fa-arrow-left"></i>
+      <span>Back</span>
+    </a>
+  </div>
+
+  <!-- Mensajes -->
+  {% if messages %}
+    {% for message in messages %}
+      <div class="p-4 rounded-lg {% if message.tags == 'success' %}bg-green-900/30 border border-green-700 text-green-300{% else %}bg-red-900/30 border border-red-700 text-red-300{% endif %} 
+                  flex items-center animate-fade-in">
+        <i class="fas {% if message.tags == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %} mr-3 text-xl"></i>
+        <span>{{ message }}</span>
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="POST" class="space-y-6">
+    {% csrf_token %}
+
+    <!-- Account Information Card -->
+    <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+      <div class="flex items-center space-x-3 mb-6">
+        <div class="w-12 h-12 bg-olive-700 rounded-lg flex items-center justify-center">
+          <i class="fas fa-user text-white text-xl"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-white">Account Information</h2>
+          <p class="text-sm text-gray-400">Basic account details</p>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <!-- Username (read-only) -->
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">
+            <i class="fas fa-user mr-2 text-olive-500"></i>Username
+          </label>
+          <input type="text" 
+                 value="{{ user.User }}"
+                 readonly
+                 class="w-full bg-dark-900/50 border border-dark-600 text-gray-500 rounded-lg px-4 py-3
+                        cursor-not-allowed">
+          <p class="text-xs text-gray-500 mt-1">
+            <i class="fas fa-lock mr-1"></i>Username cannot be changed
+          </p>
+        </div>
+
+        <!-- Role (read-only) -->
+        <div>
+          <label class="block text-sm font-medium text-gray-300 mb-2">
+            <i class="fas fa-shield-alt mr-2 text-olive-500"></i>Role
+          </label>
+          <div class="w-full bg-dark-900/50 border border-dark-600 rounded-lg px-4 py-3">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold
+                         {% if rol == 'Administrador' %}bg-orange-700/30 text-orange-400 border border-orange-700
+                         {% elif rol == 'Veterinario' %}bg-purple-700/30 text-purple-400 border border-purple-700
+                         {% else %}bg-olive-700/30 text-olive-400 border border-olive-700{% endif %}">
+              <i class="fas fa-user-tag mr-2"></i>{{ rol }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Email -->
+        <div>
+          <label for="email" class="block text-sm font-medium text-gray-300 mb-2">
+            <i class="fas fa-envelope mr-2 text-olive-500"></i>Email Address *
+          </label>
+          <input type="email" 
+                 id="email" 
+                 name="email"
+                 value="{{ user.Email }}"
+                 required
+                 class="w-full bg-dark-900 border border-dark-600 text-white rounded-lg px-4 py-3
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                        transition-all duration-300">
+        </div>
+      </div>
+    </div>
+
+    <!-- Change Password Card -->
+    <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+      <div class="flex items-center space-x-3 mb-6">
+        <div class="w-12 h-12 bg-blue-700 rounded-lg flex items-center justify-center">
+          <i class="fas fa-key text-white text-xl"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-white">Change Password</h2>
+          <p class="text-sm text-gray-400">Leave blank to keep current password</p>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <!-- Current Password -->
+        <div>
+          <label for="password_actual" class="block text-sm font-medium text-gray-300 mb-2">
+            <i class="fas fa-lock mr-2 text-blue-500"></i>Current Password
+          </label>
+          <input type="password" 
+                 id="password_actual" 
+                 name="password_actual"
+                 placeholder="Enter your current password"
+                 class="w-full bg-dark-900 border border-dark-600 text-white rounded-lg px-4 py-3
+                        focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent
+                        transition-all duration-300">
+          <p class="text-xs text-gray-500 mt-1">
+            <i class="fas fa-info-circle mr-1"></i>Required only if changing password
+          </p>
+        </div>
+
+        <!-- New Password -->
+        <div>
+          <label for="password_nueva" class="block text-sm font-medium text-gray-300 mb-2">
+            <i class="fas fa-key mr-2 text-green-500"></i>New Password
+          </label>
+          <input type="password" 
+                 id="password_nueva" 
+                 name="password_nueva"
+                 placeholder="Enter your new password"
+                 class="w-full bg-dark-900 border border-dark-600 text-white rounded-lg px-4 py-3
+                        focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent
+                        transition-all duration-300">
+          <p class="text-xs text-gray-500 mt-1">
+            <i class="fas fa-shield-alt mr-1"></i>At least 6 characters
+          </p>
+        </div>
+
+        <!-- Confirm Password -->
+        <div>
+          <label for="password_confirmar" class="block text-sm font-medium text-gray-300 mb-2">
+            <i class="fas fa-check-circle mr-2 text-green-500"></i>Confirm New Password
+          </label>
+          <input type="password" 
+                 id="password_confirmar" 
+                 name="password_confirmar"
+                 placeholder="Confirm your new password"
+                 class="w-full bg-dark-900 border border-dark-600 text-white rounded-lg px-4 py-3
+                        focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent
+                        transition-all duration-300">
+        </div>
+      </div>
+    </div>
+
+    <!-- Veterinarian Information (solo si es veterinario) -->
+    {% if rol == 'Veterinario' and vet_data %}
+    <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+      <div class="flex items-center space-x-3 mb-6">
+        <div class="w-12 h-12 bg-purple-700 rounded-lg flex items-center justify-center">
+          <i class="fas fa-user-md text-white text-xl"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-white">Professional Information</h2>
+          <p class="text-sm text-gray-400">Veterinary practice details</p>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <!-- Specialty -->
+        <div>
+          <label for="especialidad" class="block text-sm font-medium text-gray-300 mb-2">
+            <i class="fas fa-stethoscope mr-2 text-purple-500"></i>Specialty
+          </label>
+          <input type="text" 
+                 id="especialidad" 
+                 name="especialidad"
+                 value="{{ vet_data.especialidad }}"
+                 placeholder="e.g., General Practice, Surgery, Dentistry"
+                 class="w-full bg-dark-900 border border-dark-600 text-white rounded-lg px-4 py-3
+                        focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent
+                        transition-all duration-300">
+        </div>
+
+        <!-- Phone -->
+        <div>
+          <label for="telefono" class="block text-sm font-medium text-gray-300 mb-2">
+            <i class="fas fa-phone mr-2 text-purple-500"></i>Phone Number
+          </label>
+          <input type="tel" 
+                 id="telefono" 
+                 name="telefono"
+                 value="{{ vet_data.telefono }}"
+                 placeholder="+57 300 123 4567"
+                 class="w-full bg-dark-900 border border-dark-600 text-white rounded-lg px-4 py-3
+                        focus:outline-none focus:ring-2 focus:ring-purple-600 focus:border-transparent
+                        transition-all duration-300">
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="flex items-center justify-end space-x-4">
+      <a href="{% url 'index' %}" 
+         class="px-6 py-3 bg-dark-900 hover:bg-dark-700 text-gray-300 hover:text-white
+                rounded-lg border border-dark-600 transition-all duration-300 font-medium">
+        <i class="fas fa-times mr-2"></i>Cancel
+      </a>
+      
+      <button type="submit" 
+              class="px-6 py-3 bg-gradient-to-r from-olive-700 to-olive-600 
+                     hover:from-olive-600 hover:to-olive-500 text-white rounded-lg
+                     transition-all duration-300 shadow-lg hover:shadow-olive-500/50 font-medium
+                     transform hover:scale-105">
+        <i class="fas fa-save mr-2"></i>Save Changes
+      </button>
+    </div>
+  </form>
+
+  <!-- Security Notice -->
+  <div class="bg-blue-900/20 border border-blue-700 rounded-xl p-4">
+    <div class="flex items-start space-x-3">
+      <div class="flex-shrink-0">
+        <i class="fas fa-info-circle text-blue-400 text-xl"></i>
+      </div>
+      <div>
+        <p class="text-sm font-semibold text-blue-300 mb-1">Security Tips</p>
+        <ul class="text-xs text-blue-200 space-y-1 list-disc list-inside">
+          <li>Use a strong password with at least 6 characters</li>
+          <li>Don't share your password with anyone</li>
+          <li>Update your email to receive important notifications</li>
+          <li>Keep your professional information up to date</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Password Strength Indicator (optional enhancement) -->
+<script>
+  const newPasswordInput = document.getElementById('password_nueva');
+  
+  if (newPasswordInput) {
+    newPasswordInput.addEventListener('input', function() {
+      const password = this.value;
+      
+      // Simple validation feedback
+      if (password.length > 0 && password.length < 6) {
+        this.classList.add('border-red-500');
+        this.classList.remove('border-green-500');
+      } else if (password.length >= 6) {
+        this.classList.add('border-green-500');
+        this.classList.remove('border-red-500');
+      } else {
+        this.classList.remove('border-red-500', 'border-green-500');
+      }
+    });
+  }
+
+  // Confirm password matching
+  const confirmPasswordInput = document.getElementById('password_confirmar');
+  
+  if (confirmPasswordInput && newPasswordInput) {
+    confirmPasswordInput.addEventListener('input', function() {
+      const newPass = newPasswordInput.value;
+      const confirmPass = this.value;
+      
+      if (confirmPass.length > 0) {
+        if (newPass === confirmPass) {
+          this.classList.add('border-green-500');
+          this.classList.remove('border-red-500');
+        } else {
+          this.classList.add('border-red-500');
+          this.classList.remove('border-green-500');
+        }
+      } else {
+        this.classList.remove('border-red-500', 'border-green-500');
+      }
+    });
+  }
+</script>
+
+{% endblock %}

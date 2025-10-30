@@ -1,0 +1,502 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="space-y-8 max-w-7xl mx-auto">
+  
+  <!-- Header con imagen de fondo -->
+  <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-olive-800 to-olive-600 p-8 shadow-2xl">
+    <div class="absolute inset-0 opacity-10">
+      <img src="https://images.unsplash.com/photo-1530281700549-e82e7bf110d6?w=1200" 
+           class="w-full h-full object-cover" alt="Veterinary">
+    </div>
+    <div class="relative z-10">
+      <h1 class="text-4xl font-bold text-white mb-2 flex items-center">
+        <i class="fas fa-chart-pie mr-3"></i>
+        Dashboard
+        {% if rol == 'Administrador' %}
+          <span class="text-olive-200 text-2xl ml-2">- Administrator</span>
+        {% elif rol == 'Veterinario' %}
+          <span class="text-olive-200 text-2xl ml-2">- Veterinarian</span>
+        {% else %}
+          <span class="text-olive-200 text-2xl ml-2">- Client Portal</span>
+        {% endif %}
+      </h1>
+      <p class="text-olive-100">Welcome to PetCare Management System</p>
+    </div>
+  </div>
+
+  <!-- ========== DASHBOARD ADMINISTRADOR ========== -->
+  {% if rol == 'Administrador' %}
+    
+    <!-- Tarjetas de estadísticas principales -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      
+      <!-- Total Users -->
+      <div class="bg-gradient-to-br from-dark-800 to-dark-900 p-6 rounded-xl shadow-xl border border-dark-700 
+                  hover:transform hover:scale-105 transition-all duration-300">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-400 text-sm font-medium mb-2">Total Users</p>
+            <p class="text-4xl font-bold text-white">{{ total_users }}</p>
+            <p class="text-olive-400 text-xs mt-2">
+              <i class="fas fa-arrow-up mr-1"></i>Active accounts
+            </p>
+          </div>
+          <div class="w-16 h-16 bg-olive-700 rounded-full flex items-center justify-center">
+            <i class="fas fa-users text-white text-2xl"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Total Pets -->
+      <div class="bg-gradient-to-br from-dark-800 to-dark-900 p-6 rounded-xl shadow-xl border border-dark-700 
+                  hover:transform hover:scale-105 transition-all duration-300">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-400 text-sm font-medium mb-2">Total Pets</p>
+            <p class="text-4xl font-bold text-white">{{ total_mascotas }}</p>
+            <p class="text-green-400 text-xs mt-2">
+              <i class="fas fa-paw mr-1"></i>Registered
+            </p>
+          </div>
+          <div class="w-16 h-16 bg-green-700 rounded-full flex items-center justify-center">
+            <i class="fas fa-dog text-white text-2xl"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Veterinarians -->
+      <div class="bg-gradient-to-br from-dark-800 to-dark-900 p-6 rounded-xl shadow-xl border border-dark-700 
+                  hover:transform hover:scale-105 transition-all duration-300">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-400 text-sm font-medium mb-2">Veterinarians</p>
+            <p class="text-4xl font-bold text-white">{{ total_veterinarios }}</p>
+            <p class="text-purple-400 text-xs mt-2">
+              <i class="fas fa-user-md mr-1"></i>Professionals
+            </p>
+          </div>
+          <div class="w-16 h-16 bg-purple-700 rounded-full flex items-center justify-center">
+            <i class="fas fa-stethoscope text-white text-2xl"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Total Appointments -->
+      <div class="bg-gradient-to-br from-dark-800 to-dark-900 p-6 rounded-xl shadow-xl border border-dark-700 
+                  hover:transform hover:scale-105 transition-all duration-300">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-400 text-sm font-medium mb-2">Appointments</p>
+            <p class="text-4xl font-bold text-white">{{ total_citas }}</p>
+            <p class="text-blue-400 text-xs mt-2">
+              <i class="fas fa-calendar-check mr-1"></i>Total scheduled
+            </p>
+          </div>
+          <div class="w-16 h-16 bg-blue-700 rounded-full flex items-center justify-center">
+            <i class="fas fa-calendar-alt text-white text-2xl"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Estado de citas -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="bg-gradient-to-br from-yellow-900/40 to-yellow-800/40 p-6 rounded-xl shadow-xl border border-yellow-700/50
+                  backdrop-blur-sm hover:transform hover:scale-105 transition-all duration-300">
+        <div class="flex items-center space-x-4">
+          <div class="w-14 h-14 bg-yellow-600 rounded-lg flex items-center justify-center">
+            <i class="fas fa-clock text-white text-2xl"></i>
+          </div>
+          <div>
+            <p class="text-yellow-300 text-sm font-medium">Pending</p>
+            <p class="text-4xl font-bold text-white">{{ citas_pendientes }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gradient-to-br from-green-900/40 to-green-800/40 p-6 rounded-xl shadow-xl border border-green-700/50
+                  backdrop-blur-sm hover:transform hover:scale-105 transition-all duration-300">
+        <div class="flex items-center space-x-4">
+          <div class="w-14 h-14 bg-green-600 rounded-lg flex items-center justify-center">
+            <i class="fas fa-check-circle text-white text-2xl"></i>
+          </div>
+          <div>
+            <p class="text-green-300 text-sm font-medium">Completed</p>
+            <p class="text-4xl font-bold text-white">{{ citas_completadas }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gradient-to-br from-red-900/40 to-red-800/40 p-6 rounded-xl shadow-xl border border-red-700/50
+                  backdrop-blur-sm hover:transform hover:scale-105 transition-all duration-300">
+        <div class="flex items-center space-x-4">
+          <div class="w-14 h-14 bg-red-600 rounded-lg flex items-center justify-center">
+            <i class="fas fa-times-circle text-white text-2xl"></i>
+          </div>
+          <div>
+            <p class="text-red-300 text-sm font-medium">Cancelled</p>
+            <p class="text-4xl font-bold text-white">{{ citas_canceladas }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gráficos y estadísticas detalladas -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      
+      <!-- Top Species -->
+      <div class="bg-dark-800 p-6 rounded-xl shadow-xl border border-dark-700">
+        <div class="flex items-center mb-6">
+          <div class="w-10 h-10 bg-olive-700 rounded-lg flex items-center justify-center mr-3">
+            <i class="fas fa-paw text-white"></i>
+          </div>
+          <h2 class="text-xl font-bold text-white">Top 5 Pet Species</h2>
+        </div>
+        
+        {% if especies_data %}
+          <div class="space-y-4">
+            {% for item in especies_data %}
+              <div class="group">
+                <div class="flex justify-between mb-2">
+                  <span class="text-gray-300 font-medium group-hover:text-olive-400 transition-colors">
+                    <i class="fas fa-bone text-olive-500 mr-2"></i>{{ item.especie }}
+                  </span>
+                  <span class="font-bold text-olive-400">{{ item.cantidad }}</span>
+                </div>
+                <div class="w-full bg-dark-700 rounded-full h-3 overflow-hidden">
+                  <div class="bg-gradient-to-r from-olive-600 to-olive-500 h-3 rounded-full transition-all duration-500 
+                              group-hover:from-olive-500 group-hover:to-olive-400" 
+                       style="width: {{ item.cantidad|add:"0" }}%"></div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="text-gray-500 text-center py-8">No data available</p>
+        {% endif %}
+      </div>
+
+      <!-- Top Veterinarians -->
+      <div class="bg-dark-800 p-6 rounded-xl shadow-xl border border-dark-700">
+        <div class="flex items-center mb-6">
+          <div class="w-10 h-10 bg-purple-700 rounded-lg flex items-center justify-center mr-3">
+            <i class="fas fa-user-md text-white"></i>
+          </div>
+          <h2 class="text-xl font-bold text-white">Top Veterinarians</h2>
+        </div>
+        
+        {% if top_vets %}
+          <div class="space-y-4">
+            {% for vet in top_vets %}
+              <div class="flex items-center justify-between p-4 bg-dark-900 rounded-lg border border-dark-700
+                          hover:border-olive-600 transition-all duration-300 group">
+                <div class="flex items-center space-x-4">
+                  <div class="w-12 h-12 bg-gradient-to-br from-olive-700 to-olive-600 rounded-full 
+                              flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <i class="fas fa-user-md text-white"></i>
+                  </div>
+                  <div>
+                    <p class="font-semibold text-white group-hover:text-olive-400 transition-colors">
+                      {{ vet.nombre }}
+                    </p>
+                    <p class="text-sm text-gray-400">{{ vet.especialidad }}</p>
+                  </div>
+                </div>
+                <span class="bg-olive-700 text-white px-4 py-2 rounded-full text-sm font-bold
+                             group-hover:bg-olive-600 transition-colors">
+                  {{ vet.citas }} <i class="fas fa-calendar-check ml-1"></i>
+                </span>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="text-gray-500 text-center py-8">No data available</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- User Distribution -->
+    <div class="bg-dark-800 p-6 rounded-xl shadow-xl border border-dark-700">
+      <div class="flex items-center mb-6">
+        <div class="w-10 h-10 bg-blue-700 rounded-lg flex items-center justify-center mr-3">
+          <i class="fas fa-users text-white"></i>
+        </div>
+        <h2 class="text-xl font-bold text-white">User Distribution</h2>
+      </div>
+      
+      <div class="grid grid-cols-3 gap-6">
+        <div class="text-center p-6 bg-gradient-to-br from-blue-900/30 to-blue-800/30 rounded-xl border border-blue-700/50
+                    hover:transform hover:scale-105 transition-all duration-300">
+          <div class="w-16 h-16 bg-blue-700 rounded-full mx-auto mb-4 flex items-center justify-center">
+            <i class="fas fa-user text-white text-2xl"></i>
+          </div>
+          <p class="text-4xl font-bold text-white mb-2">{{ total_clientes }}</p>
+          <p class="text-blue-300 font-medium">Clients</p>
+        </div>
+        
+        <div class="text-center p-6 bg-gradient-to-br from-purple-900/30 to-purple-800/30 rounded-xl border border-purple-700/50
+                    hover:transform hover:scale-105 transition-all duration-300">
+          <div class="w-16 h-16 bg-purple-700 rounded-full mx-auto mb-4 flex items-center justify-center">
+            <i class="fas fa-user-md text-white text-2xl"></i>
+          </div>
+          <p class="text-4xl font-bold text-white mb-2">{{ total_veterinarios_users }}</p>
+          <p class="text-purple-300 font-medium">Veterinarians</p>
+        </div>
+        
+        <div class="text-center p-6 bg-gradient-to-br from-orange-900/30 to-orange-800/30 rounded-xl border border-orange-700/50
+                    hover:transform hover:scale-105 transition-all duration-300">
+          <div class="w-16 h-16 bg-orange-700 rounded-full mx-auto mb-4 flex items-center justify-center">
+            <i class="fas fa-user-shield text-white text-2xl"></i>
+          </div>
+          <p class="text-4xl font-bold text-white mb-2">{{ total_admins }}</p>
+          <p class="text-orange-300 font-medium">Administrators</p>
+        </div>
+      </div>
+    </div>
+
+  <!-- ========== DASHBOARD VETERINARIO ========== -->
+  {% elif rol == 'Veterinario' %}
+    
+    <!-- Tarjetas de resumen -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div class="bg-gradient-to-br from-dark-800 to-dark-900 p-6 rounded-xl shadow-xl border border-dark-700 
+                  hover:transform hover:scale-105 transition-all duration-300">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-400 text-sm font-medium mb-2">Total Appointments</p>
+            <p class="text-4xl font-bold text-white">{{ total_citas }}</p>
+          </div>
+          <div class="w-16 h-16 bg-blue-700 rounded-full flex items-center justify-center">
+            <i class="fas fa-calendar-alt text-white text-2xl"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gradient-to-br from-dark-800 to-dark-900 p-6 rounded-xl shadow-xl border border-dark-700 
+                  hover:transform hover:scale-105 transition-all duration-300">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-400 text-sm font-medium mb-2">Pending</p>
+            <p class="text-4xl font-bold text-white">{{ citas_pendientes }}</p>
+          </div>
+          <div class="w-16 h-16 bg-yellow-700 rounded-full flex items-center justify-center">
+            <i class="fas fa-hourglass-half text-white text-2xl"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gradient-to-br from-dark-800 to-dark-900 p-6 rounded-xl shadow-xl border border-dark-700 
+                  hover:transform hover:scale-105 transition-all duration-300">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-400 text-sm font-medium mb-2">Completed</p>
+            <p class="text-4xl font-bold text-white">{{ citas_completadas }}</p>
+          </div>
+          <div class="w-16 h-16 bg-green-700 rounded-full flex items-center justify-center">
+            <i class="fas fa-check-circle text-white text-2xl"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gradient-to-br from-dark-800 to-dark-900 p-6 rounded-xl shadow-xl border border-dark-700 
+                  hover:transform hover:scale-105 transition-all duration-300">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-400 text-sm font-medium mb-2">Today</p>
+            <p class="text-4xl font-bold text-white">{{ citas_hoy }}</p>
+          </div>
+          <div class="w-16 h-16 bg-purple-700 rounded-full flex items-center justify-center">
+            <i class="fas fa-calendar-day text-white text-2xl"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Próximas citas -->
+    <div class="bg-dark-800 p-6 rounded-xl shadow-xl border border-dark-700">
+      <div class="flex items-center mb-6">
+        <div class="w-10 h-10 bg-olive-700 rounded-lg flex items-center justify-center mr-3">
+          <i class="fas fa-calendar-check text-white"></i>
+        </div>
+        <h2 class="text-xl font-bold text-white">Upcoming Appointments</h2>
+      </div>
+      
+      {% if proximas_citas %}
+        <div class="overflow-x-auto">
+          <table class="min-w-full">
+            <thead class="bg-dark-900 border-b border-dark-700">
+              <tr>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-300">
+                  <i class="fas fa-paw text-olive-500 mr-2"></i>Pet
+                </th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-300">
+                  <i class="fas fa-user-md text-olive-500 mr-2"></i>Veterinarian
+                </th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-300">
+                  <i class="fas fa-calendar text-olive-500 mr-2"></i>Date
+                </th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-300">
+                  <i class="fas fa-clock text-olive-500 mr-2"></i>Time
+                </th>
+                <th class="px-6 py-4 text-left text-sm font-semibold text-gray-300">
+                  <i class="fas fa-notes-medical text-olive-500 mr-2"></i>Reason
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-dark-700">
+              {% for cita in proximas_citas %}
+                <tr class="hover:bg-dark-900 transition-colors">
+                  <td class="px-6 py-4 text-white">{{ cita.mascota }}</td>
+                  <td class="px-6 py-4 text-gray-300">{{ cita.veterinario }}</td>
+                  <td class="px-6 py-4 text-gray-300">{{ cita.fecha }}</td>
+                  <td class="px-6 py-4 text-gray-300">{{ cita.hora }}</td>
+                  <td class="px-6 py-4 text-gray-400 text-sm">{{ cita.motivo }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-center py-12">
+          <i class="fas fa-calendar-times text-gray-600 text-5xl mb-4"></i>
+          <p class="text-gray-500">No upcoming appointments</p>
+        </div>
+      {% endif %}
+    </div>
+
+  <!-- ========== DASHBOARD CLIENTE ========== -->
+  {% else %}
+    
+    <!-- Tarjetas de resumen -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="bg-gradient-to-br from-dark-800 to-dark-900 p-6 rounded-xl shadow-xl border border-dark-700 
+                  hover:transform hover:scale-105 transition-all duration-300">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-400 text-sm font-medium mb-2">My Pets</p>
+            <p class="text-4xl font-bold text-white">{{ total_mis_mascotas }}</p>
+          </div>
+          <div class="w-16 h-16 bg-olive-700 rounded-full flex items-center justify-center">
+            <i class="fas fa-dog text-white text-2xl"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gradient-to-br from-dark-800 to-dark-900 p-6 rounded-xl shadow-xl border border-dark-700 
+                  hover:transform hover:scale-105 transition-all duration-300">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-400 text-sm font-medium mb-2">Appointments</p>
+            <p class="text-4xl font-bold text-white">{{ total_mis_citas }}</p>
+          </div>
+          <div class="w-16 h-16 bg-green-700 rounded-full flex items-center justify-center">
+            <i class="fas fa-calendar-check text-white text-2xl"></i>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-gradient-to-br from-dark-800 to-dark-900 p-6 rounded-xl shadow-xl border border-dark-700 
+                  hover:transform hover:scale-105 transition-all duration-300">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-gray-400 text-sm font-medium mb-2">Pending</p>
+            <p class="text-4xl font-bold text-white">{{ mis_citas_pendientes }}</p>
+          </div>
+          <div class="w-16 h-16 bg-yellow-700 rounded-full flex items-center justify-center">
+            <i class="fas fa-clock text-white text-2xl"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      
+      <!-- Mis mascotas -->
+      <div class="bg-dark-800 p-6 rounded-xl shadow-xl border border-dark-700">
+        <div class="flex items-center mb-6">
+          <div class="w-10 h-10 bg-olive-700 rounded-lg flex items-center justify-center mr-3">
+            <i class="fas fa-paw text-white"></i>
+          </div>
+          <h2 class="text-xl font-bold text-white">My Pets</h2>
+        </div>
+        
+        {% if mis_mascotas %}
+          <div class="space-y-3">
+            {% for mascota in mis_mascotas %}
+              <div class="flex items-center justify-between p-4 bg-dark-900 rounded-lg border border-dark-700
+                          hover:border-olive-600 transition-all duration-300 group">
+                <div class="flex items-center space-x-4">
+                  <div class="w-12 h-12 bg-gradient-to-br from-olive-700 to-olive-600 rounded-full 
+                              flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <i class="fas fa-paw text-white"></i>
+                  </div>
+                  <div>
+                    <p class="font-semibold text-white group-hover:text-olive-400 transition-colors">
+                      {{ mascota.nombre }}
+                    </p>
+                    <p class="text-sm text-gray-400">{{ mascota.especie }} - {{ mascota.raza }}</p>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-center py-12">
+            <i class="fas fa-dog text-gray-600 text-5xl mb-4"></i>
+            <p class="text-gray-500">No pets registered</p>
+            <a href="{% url 'add_paciente' %}" 
+               class="inline-block mt-4 bg-olive-700 hover:bg-olive-600 text-white px-6 py-2 rounded-lg transition-colors">
+              <i class="fas fa-plus mr-2"></i>Add Your First Pet
+            </a>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Próximas citas -->
+      <div class="bg-dark-800 p-6 rounded-xl shadow-xl border border-dark-700">
+        <div class="flex items-center mb-6">
+          <div class="w-10 h-10 bg-blue-700 rounded-lg flex items-center justify-center mr-3">
+            <i class="fas fa-calendar-alt text-white"></i>
+          </div>
+          <h2 class="text-xl font-bold text-white">Upcoming Appointments</h2>
+        </div>
+        
+        {% if proximas_citas %}
+          <div class="space-y-4">
+            {% for cita in proximas_citas %}
+              <div class="border-l-4 border-olive-600 pl-4 py-3 bg-dark-900 rounded-r-lg
+                          hover:bg-dark-700 transition-colors">
+                <p class="font-semibold text-white mb-1">
+                  <i class="fas fa-paw text-olive-500 mr-2"></i>{{ cita.mascota }}
+                </p>
+                <p class="text-sm text-gray-400 mb-1">
+                  <i class="fas fa-user-md text-gray-500 mr-2"></i>Dr. {{ cita.veterinario }}
+                </p>
+                <p class="text-sm text-gray-400 mb-1">
+                  <i class="fas fa-calendar text-gray-500 mr-2"></i>{{ cita.fecha }} at {{ cita.hora }}
+                </p>
+                <p class="text-xs text-gray-500">
+                  <i class="fas fa-notes-medical text-gray-600 mr-2"></i>{{ cita.motivo }}
+                </p>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="text-center py-12">
+            <i class="fas fa-calendar-times text-gray-600 text-5xl mb-4"></i>
+            <p class="text-gray-500">No upcoming appointments</p>
+            <a href="{% url 'add_cita' %}" 
+               class="inline-block mt-4 bg-olive-700 hover:bg-olive-600 text-white px-6 py-2 rounded-lg transition-colors">
+              <i class="fas fa-plus mr-2"></i>Schedule Appointment
+            </a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  {% endif %}
+  
+</div>
+
+{% endblock %}

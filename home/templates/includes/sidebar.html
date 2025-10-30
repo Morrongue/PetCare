@@ -1,0 +1,154 @@
+<!-- templates/includes/sidebar.html -->
+<div id="sidebar" class="w-72 bg-gradient-to-b from-dark-800 to-dark-900 text-white p-6 space-y-6 
+     transition-transform duration-300 ease-in-out fixed h-full overflow-y-auto shadow-2xl border-r border-dark-700
+     lg:translate-x-0 -translate-x-full z-20">
+  
+  <!-- Logo y título -->
+  <div class="text-center pb-6 border-b border-dark-700">
+    <div class="w-20 h-20 mx-auto mb-3 bg-olive-700 rounded-full flex items-center justify-center shadow-lg">
+      <i class="fas fa-paw text-3xl text-white"></i>
+    </div>
+    <h2 class="text-2xl font-bold text-olive-400">PetCare</h2>
+    <p class="text-xs text-gray-400 mt-1">Veterinary Clinic System</p>
+  </div>
+
+  <!-- Navegación -->
+  <nav class="space-y-2">
+    <!-- Dashboard -->
+    <a href="{% url 'index' %}" 
+       class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+              hover:bg-olive-700 transition-all duration-300 
+              {% if request.path == '/' %}bg-olive-700 shadow-lg{% endif %}">
+      <i class="fas fa-chart-line text-olive-400 group-hover:text-white text-lg w-5"></i>
+      <span class="font-medium group-hover:translate-x-1 transition-transform">Dashboard</span>
+    </a>
+
+    <!-- My Pets -->
+    <a href="{% url 'list_pacientes' %}" 
+       class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+              hover:bg-olive-700 transition-all duration-300
+              {% if 'patients' in request.path %}bg-olive-700 shadow-lg{% endif %}">
+      <i class="fas fa-dog text-olive-400 group-hover:text-white text-lg w-5"></i>
+      <span class="font-medium group-hover:translate-x-1 transition-transform">My Pets</span>
+    </a>
+
+    {% if rol == 'Administrador' %}
+      <!-- Separador -->
+      <div class="pt-4 pb-2">
+        <p class="text-xs text-gray-500 uppercase tracking-wider px-4">Administration</p>
+      </div>
+
+      <!-- Veterinarians -->
+      <a href="{% url 'list_veterinarios' %}" 
+         class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+                hover:bg-olive-700 transition-all duration-300
+                {% if 'vets' in request.path %}bg-olive-700 shadow-lg{% endif %}">
+        <i class="fas fa-user-md text-olive-400 group-hover:text-white text-lg w-5"></i>
+        <span class="font-medium group-hover:translate-x-1 transition-transform">Veterinarians</span>
+      </a>
+
+      <!-- Users -->
+      <a href="{% url 'admin_users_list' %}" 
+         class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+                hover:bg-olive-700 transition-all duration-300
+                {% if 'panel/users' in request.path %}bg-olive-700 shadow-lg{% endif %}">
+        <i class="fas fa-users text-olive-400 group-hover:text-white text-lg w-5"></i>
+        <span class="font-medium group-hover:translate-x-1 transition-transform">Manage Users</span>
+      </a>
+
+      <!-- Appointments -->
+      <a href="{% url 'list_citas' %}" 
+         class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+                hover:bg-olive-700 transition-all duration-300
+                {% if 'appointments' in request.path %}bg-olive-700 shadow-lg{% endif %}">
+        <i class="fas fa-calendar-check text-olive-400 group-hover:text-white text-lg w-5"></i>
+        <span class="font-medium group-hover:translate-x-1 transition-transform">Appointments</span>
+      </a>
+
+      <!-- Reports -->
+      <a href="{% url 'reports' %}" 
+         class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+                hover:bg-olive-700 transition-all duration-300
+                {% if 'reports' in request.path %}bg-olive-700 shadow-lg{% endif %}">
+        <i class="fas fa-chart-bar text-olive-400 group-hover:text-white text-lg w-5"></i>
+        <span class="font-medium group-hover:translate-x-1 transition-transform">Reports</span>
+      </a>
+
+    {% elif rol == 'Veterinario' %}
+      <!-- Separador -->
+      <div class="pt-4 pb-2">
+        <p class="text-xs text-gray-500 uppercase tracking-wider px-4">Veterinarian Tools</p>
+      </div>
+
+      <!-- Appointments -->
+      <a href="{% url 'list_citas' %}" 
+         class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+                hover:bg-olive-700 transition-all duration-300
+                {% if 'appointments' in request.path %}bg-olive-700 shadow-lg{% endif %}">
+        <i class="fas fa-calendar-alt text-olive-400 group-hover:text-white text-lg w-5"></i>
+        <span class="font-medium group-hover:translate-x-1 transition-transform">My Appointments</span>
+      </a>
+
+      <!-- Reports -->
+      <a href="{% url 'reports' %}" 
+         class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+                hover:bg-olive-700 transition-all duration-300
+                {% if 'reports' in request.path %}bg-olive-700 shadow-lg{% endif %}">
+        <i class="fas fa-chart-bar text-olive-400 group-hover:text-white text-lg w-5"></i>
+        <span class="font-medium group-hover:translate-x-1 transition-transform">Reports</span>
+      </a>
+
+    {% elif rol == 'Cliente' %}
+      <!-- Separador -->
+      <div class="pt-4 pb-2">
+        <p class="text-xs text-gray-500 uppercase tracking-wider px-4">My Services</p>
+      </div>
+
+      <!-- Appointments -->
+      <a href="{% url 'list_citas' %}" 
+         class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+                hover:bg-olive-700 transition-all duration-300
+                {% if 'appointments' in request.path %}bg-olive-700 shadow-lg{% endif %}">
+        <i class="fas fa-calendar text-olive-400 group-hover:text-white text-lg w-5"></i>
+        <span class="font-medium group-hover:translate-x-1 transition-transform">My Appointments</span>
+      </a>
+    {% endif %}
+  </nav>
+
+  <!-- Footer del sidebar -->
+  <div class="absolute bottom-0 left-0 right-0 p-6 border-t border-dark-700 bg-dark-900">
+    <a href="{% url 'logout' %}" 
+       class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+              bg-red-900/30 hover:bg-red-900 transition-all duration-300">
+      <i class="fas fa-sign-out-alt text-red-400 group-hover:text-white text-lg w-5"></i>
+      <span class="font-medium text-red-300 group-hover:text-white group-hover:translate-x-1 transition-transform">
+        Logout
+      </span>
+    </a>
+  </div>
+
+</div>
+
+<!-- Overlay para cerrar el sidebar en móvil -->
+<div id="sidebar-overlay" 
+     class="fixed inset-0 bg-black/50 z-10 lg:hidden hidden"
+     onclick="document.getElementById('sidebar').classList.add('-translate-x-full'); this.classList.add('hidden');">
+</div>
+
+<script>
+  // Mostrar overlay cuando el sidebar está abierto en móvil
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  
+  const observer = new MutationObserver(() => {
+    if (window.innerWidth < 1024) {
+      if (!sidebar.classList.contains('-translate-x-full')) {
+        overlay.classList.remove('hidden');
+      } else {
+        overlay.classList.add('hidden');
+      }
+    }
+  });
+  
+  observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
+</script>

@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="max-w-4xl mx-auto space-y-6">
+  
+  <!-- Breadcrumb -->
+  <div class="flex items-center space-x-2 text-sm text-gray-400">
+    <a href="{% url 'list_pacientes' %}" class="hover:text-olive-400 transition-colors">
+      <i class="fas fa-paw mr-1"></i>My Pets
+    </a>
+    <i class="fas fa-chevron-right text-xs"></i>
+    <span class="text-white">{{ action }} Pet</span>
+  </div>
+
+  <!-- Header -->
+  <div class="flex items-center space-x-4">
+    <div class="w-16 h-16 bg-gradient-to-br from-olive-700 to-olive-600 rounded-xl flex items-center justify-center shadow-lg">
+      <i class="fas {% if action == 'Add' %}fa-plus{% else %}fa-edit{% endif %} text-white text-2xl"></i>
+    </div>
+    <div>
+      <h1 class="text-3xl font-bold text-white">{{ action }} Pet</h1>
+      <p class="text-gray-400">
+        {% if action == 'Add' %}
+          Add a new pet to your family
+        {% else %}
+          Update your pet's information
+        {% endif %}
+      </p>
+    </div>
+  </div>
+
+  <!-- Formulario principal -->
+  <div class="grid lg:grid-cols-3 gap-6">
+    
+    <!-- Columna del formulario -->
+    <div class="lg:col-span-2">
+      <div class="bg-dark-800 border border-dark-700 rounded-xl p-8 shadow-xl">
+        
+        <!-- Mensajes -->
+        {% if messages %}
+          {% for message in messages %}
+            <div class="mb-6 p-4 rounded-lg {% if message.tags == 'error' %}bg-red-900/30 border border-red-700 text-red-300{% else %}bg-green-900/30 border border-green-700 text-green-300{% endif %}">
+              <i class="fas {% if message.tags == 'error' %}fa-exclamation-circle{% else %}fa-check-circle{% endif %} mr-2"></i>
+              {{ message }}
+            </div>
+          {% endfor %}
+        {% endif %}
+
+        <form method="POST" class="space-y-6" id="petForm">
+          {% csrf_token %}
+          
+          <!-- Nombre del Pet -->
+          <div class="group">
+            <label class="block text-gray-300 mb-2 font-medium">
+              <i class="fas fa-tag text-olive-500 mr-2"></i>
+              Pet Name *
+            </label>
+            <input type="text" 
+                   name="nombre" 
+                   value="{{ paciente.nombre }}" 
+                   required
+                   placeholder="e.g., Max, Luna, Charlie"
+                   class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                          focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                          transition-all duration-300 group-hover:border-olive-700"
+                   oninput="validateName(this)">
+            <p class="text-xs text-gray-500 mt-1 flex items-center">
+              <i class="fas fa-info-circle mr-1"></i>
+              The name you use to call your pet
+            </p>
+          </div>
+
+          <!-- Especie -->
+          <div class="group">
+            <label class="block text-gray-300 mb-2 font-medium">
+              <i class="fas fa-paw text-olive-500 mr-2"></i>
+              Species *
+            </label>
+            <select name="especie" 
+                    required
+                    class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                           focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                           transition-all duration-300 group-hover:border-olive-700"
+                    onchange="updateBreedOptions(this.value)">
+              <option value="">Select a species...</option>
+              <option value="Dog" {% if paciente.especie == 'Dog' %}selected{% endif %}>🐕 Dog</option>
+              <option value="Cat" {% if paciente.especie == 'Cat' %}selected{% endif %}>🐈 Cat</option>
+              <option value="Rabbit" {% if paciente.especie == 'Rabbit' %}selected{% endif %}>🐰 Rabbit</option>
+              <option value="Hamster" {% if paciente.especie == 'Hamster' %}selected{% endif %}>🐹 Hamster</option>
+              <option value="Bird" {% if paciente.especie == 'Bird' %}selected{% endif %}>🦜 Bird</option>
+              <option value="Reptile" {% if paciente.especie == 'Reptile' %}selected{% endif %}>🦎 Reptile</option>
+              <option value="Other" {% if paciente.especie == 'Otro' %}selected{% endif %}>🐾 Other</option>
+            </select>
+          </div>
+
+          <!-- Raza -->
+          <div class="group">
+            <label class="block text-gray-300 mb-2 font-medium">
+              <i class="fas fa-bone text-olive-500 mr-2"></i>
+              Breed *
+            </label>
+            <input type="text" 
+                   name="raza" 
+                   id="razaInput"
+                   value="{{ paciente.raza }}" 
+                   required
+                   placeholder="e.g., Labrador, Persian, Mixed"
+                   list="breedOptions"
+                   class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                          focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                          transition-all duration-300 group-hover:border-olive-700">
+            
+            <!-- Datalist con sugerencias -->
+            <datalist id="breedOptions">
+              <option value="Mixed Breed">
+              <option value="Unknown">
+            </datalist>
+            
+            <p class="text-xs text-gray-500 mt-1 flex items-center">
+              <i class="fas fa-lightbulb mr-1"></i>
+              Start typing to see breed suggestions
+            </p>
+          </div>
+
+          <!-- Botones de acción -->
+          <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t border-dark-700">
+            <button type="submit"
+                    class="flex-1 bg-gradient-to-r from-olive-700 to-olive-600 hover:from-olive-600 hover:to-olive-500
+                           text-white font-semibold py-3 rounded-lg transform hover:scale-[1.02] active:scale-[0.98]
+                           transition-all duration-300 shadow-lg hover:shadow-olive-500/50 flex items-center justify-center">
+              <i class="fas {% if action == 'Add' %}fa-plus-circle{% else %}fa-save{% endif %} mr-2"></i>
+              {{ action }} Pet
+            </button>
+            
+            <a href="{% url 'list_pacientes' %}"
+               class="flex-1 bg-dark-900 hover:bg-dark-700 text-gray-300 hover:text-white font-semibold py-3 rounded-lg
+                      transition-all duration-300 border border-dark-600 hover:border-dark-500 flex items-center justify-center">
+              <i class="fas fa-times mr-2"></i>
+              Cancel
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Columna lateral - Tips y preview -->
+    <div class="lg:col-span-1 space-y-6">
+      
+      <!-- Preview Card -->
+      <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+        <h3 class="text-lg font-bold text-white mb-4 flex items-center">
+          <i class="fas fa-eye text-olive-500 mr-2"></i>
+          Preview
+        </h3>
+        
+        <div class="bg-dark-900 border border-dark-600 rounded-lg p-4 text-center">
+          <div class="w-20 h-20 mx-auto mb-3 bg-gradient-to-br from-olive-700 to-olive-600 rounded-full 
+                      flex items-center justify-center">
+            <i class="fas fa-paw text-white text-2xl"></i>
+          </div>
+          <p class="text-white font-bold text-lg" id="previewName">Pet Name</p>
+          <p class="text-gray-400 text-sm" id="previewSpecies">Species</p>
+          <p class="text-gray-500 text-xs" id="previewBreed">Breed</p>
+        </div>
+      </div>
+
+      <!-- Tips -->
+      <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+        <h3 class="text-lg font-bold text-white mb-4 flex items-center">
+          <i class="fas fa-lightbulb text-yellow-500 mr-2"></i>
+          Tips
+        </h3>
+        
+        <div class="space-y-3 text-sm">
+          <div class="flex items-start space-x-2 text-gray-300">
+            <i class="fas fa-check-circle text-olive-500 mt-0.5"></i>
+            <p>Use your pet's commonly used name</p>
+          </div>
+          <div class="flex items-start space-x-2 text-gray-300">
+            <i class="fas fa-check-circle text-olive-500 mt-0.5"></i>
+            <p>Select the correct species for accurate care</p>
+          </div>
+          <div class="flex items-start space-x-2 text-gray-300">
+            <i class="fas fa-check-circle text-olive-500 mt-0.5"></i>
+            <p>Include breed if known, or select "Mixed"</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Especies populares -->
+      <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+        <h3 class="text-sm font-bold text-gray-400 mb-3">POPULAR SPECIES</h3>
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-dark-900 p-3 rounded-lg text-center hover:border hover:border-olive-600 transition-all cursor-pointer"
+               onclick="document.querySelector('select[name=especie]').value='Perro'">
+            <span class="text-2xl">🐕</span>
+            <p class="text-xs text-gray-400 mt-1">Dog</p>
+          </div>
+          <div class="bg-dark-900 p-3 rounded-lg text-center hover:border hover:border-olive-600 transition-all cursor-pointer"
+               onclick="document.querySelector('select[name=especie]').value='Gato'">
+            <span class="text-2xl">🐈</span>
+            <p class="text-xs text-gray-400 mt-1">Cat</p>
+          </div>
+          <div class="bg-dark-900 p-3 rounded-lg text-center hover:border hover:border-olive-600 transition-all cursor-pointer"
+               onclick="document.querySelector('select[name=especie]').value='Conejo'">
+            <span class="text-2xl">🐰</span>
+            <p class="text-xs text-gray-400 mt-1">Rabbit</p>
+          </div>
+          <div class="bg-dark-900 p-3 rounded-lg text-center hover:border hover:border-olive-600 transition-all cursor-pointer"
+               onclick="document.querySelector('select[name=especie]').value='Ave'">
+            <span class="text-2xl">🦜</span>
+            <p class="text-xs text-gray-400 mt-1">Bird</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // Razas por especie
+  const breedsBySpecies = {
+    'Dog': ['Labrador', 'Golden Retriever', 'German Shepherd', 'Beagle', 'Bulldog', 'Poodle', 'Chihuahua', 'Mixed Breed'],
+    'Cat': ['Persian', 'Siamese', 'Maine Coon', 'British Shorthair', 'Bengal', 'Ragdoll', 'Mixed Breed'],
+    'Rabbit': ['Holland Lop', 'Mini Rex', 'Dutch', 'Flemish Giant', 'Lionhead', 'Mixed Breed'],
+    'Bird': ['Parrot', 'Parakeet', 'Cockatiel', 'Canary', 'Finch', 'Macaw'],
+    'Hamster': ['Syrian', 'Dwarf', 'Roborovski', 'Chinese'],
+    'Reptile': ['Iguana', 'Gecko', 'Turtle', 'Snake', 'Chameleon'],
+    'Other': ['Mixed Breed', 'Unknown']
+  };
+
+  // Actualizar opciones de raza según especie
+  function updateBreedOptions(species) {
+    const datalist = document.getElementById('breedOptions');
+    datalist.innerHTML = '';
+    
+    const breeds = breedsBySpecies[species] || ['Mixed Breed', 'Unknown'];
+    breeds.forEach(breed => {
+      const option = document.createElement('option');
+      option.value = breed;
+      datalist.appendChild(option);
+    });
+
+    // Actualizar preview
+    document.getElementById('previewSpecies').textContent = species || 'Species';
+  }
+
+  // Validación y preview en tiempo real
+  function validateName(input) {
+    document.getElementById('previewName').textContent = input.value || 'Pet Name';
+  }
+
+  // Preview de raza
+  document.getElementById('razaInput').addEventListener('input', function() {
+    document.getElementById('previewBreed').textContent = this.value || 'Breed';
+  });
+
+  // Inicializar preview con valores existentes
+  document.addEventListener('DOMContentLoaded', function() {
+    const nombreInput = document.querySelector('input[name="nombre"]');
+    const especieSelect = document.querySelector('select[name="especie"]');
+    const razaInput = document.querySelector('input[name="raza"]');
+
+    if (nombreInput.value) {
+      document.getElementById('previewName').textContent = nombreInput.value;
+    }
+    if (especieSelect.value) {
+      document.getElementById('previewSpecies').textContent = especieSelect.value;
+      updateBreedOptions(especieSelect.value);
+    }
+    if (razaInput.value) {
+      document.getElementById('previewBreed').textContent = razaInput.value;
+    }
+
+    // Animación de entrada
+    const form = document.getElementById('petForm');
+    form.style.opacity = '0';
+    form.style.transform = 'translateY(20px)';
+    
+    setTimeout(() => {
+      form.style.transition = 'all 0.5s ease-in-out';
+      form.style.opacity = '1';
+      form.style.transform = 'translateY(0)';
+    }, 100);
+  });
+</script>
+
+{% endblock %}

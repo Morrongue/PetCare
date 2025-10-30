@@ -1,0 +1,309 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PetCare Veterinary Clinic</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'olive': {
+              50: '#f6f7f3',
+              100: '#e8ebe0',
+              200: '#d1d7c1',
+              300: '#b3be9a',
+              400: '#96a573',
+              500: '#7a8c55',
+              600: '#6B8E23',
+              700: '#556B2F',
+              800: '#475a27',
+              900: '#3d4c23',
+            },
+            'dark': {
+              50: '#f9fafb',
+              100: '#f3f4f6',
+              200: '#e5e7eb',
+              300: '#d1d5db',
+              400: '#9ca3af',
+              500: '#6b7280',
+              600: '#4b5563',
+              700: '#374151',
+              800: '#1f2937',
+              900: '#111827',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+    
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    }
+
+    /* Animaciones suaves */
+    .fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Dropdown animation */
+    @keyframes dropdownOpen {
+      from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    @keyframes dropdownClose {
+      from {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+      to {
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+      }
+    }
+
+    .dropdown-open {
+      animation: dropdownOpen 0.2s ease-out forwards;
+    }
+
+    .dropdown-close {
+      animation: dropdownClose 0.15s ease-in forwards;
+    }
+
+    /* Scrollbar personalizado */
+    ::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #1f2937;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #556B2F;
+      border-radius: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #6B8E23;
+    }
+
+    /* Efecto glassmorphism */
+    .glass {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+<body class="text-gray-100">
+
+  <div class="flex min-h-screen">
+    {% if username %}
+      {% include 'includes/sidebar.html' %}
+    {% endif %}
+
+    <!-- Main Content Area con padding izquierdo para el sidebar -->
+    <div class="flex-1 {% if username %}lg:ml-72{% endif %} transition-all duration-300">
+      {% if username %}
+        <!-- Header superior -->
+        <div class="bg-dark-800 border-b border-dark-700 px-8 py-4 flex justify-between items-center sticky top-0 z-10 shadow-lg">
+          <button id="toggleSidebar" class="lg:hidden text-white hover:text-olive-500 transition-colors">
+            <i class="fas fa-bars text-2xl"></i>
+          </button>
+          
+          <div class="flex items-center space-x-4 ml-auto relative">
+            <div class="text-right">
+              <p class="text-sm text-gray-400">Welcome back,</p>
+              <p class="font-semibold text-olive-400">{{ username }}</p>
+            </div>
+            
+            <!-- Profile Dropdown Button -->
+            <div class="relative">
+              <button id="profileDropdownBtn" 
+                      class="w-10 h-10 bg-gradient-to-br from-olive-700 to-olive-600 rounded-full 
+                             flex items-center justify-center hover:scale-110 transition-all duration-300 
+                             shadow-lg hover:shadow-olive-500/50 focus:outline-none focus:ring-2 focus:ring-olive-500">
+                <i class="fas fa-user text-white"></i>
+              </button>
+
+              <!-- Dropdown Menu -->
+              <div id="profileDropdown" 
+                   class="hidden absolute right-0 mt-3 w-56 bg-dark-800 border border-dark-700 rounded-xl 
+                          shadow-2xl overflow-hidden z-50 transform origin-top-right">
+                
+                <!-- User Info -->
+                <div class="px-4 py-3 bg-dark-900 border-b border-dark-700">
+                  <p class="text-sm text-gray-400">Signed in as</p>
+                  <p class="font-semibold text-white truncate">{{ username }}</p>
+                  {% if rol %}
+                    <span class="inline-block mt-1 px-2 py-0.5 text-xs rounded-full
+                                 {% if rol == 'Administrador' %}bg-orange-700/30 text-orange-400 border border-orange-700
+                                 {% elif rol == 'Veterinario' %}bg-purple-700/30 text-purple-400 border border-purple-700
+                                 {% else %}bg-olive-700/30 text-olive-400 border border-olive-700{% endif %}">
+                      {{ rol }}
+                    </span>
+                  {% endif %}
+                </div>
+
+                <!-- Menu Items -->
+                <div class="py-2">
+                  <!-- Edit Information -->
+                  <a href="{% url 'edit_profile' %}" 
+                     class="flex items-center space-x-3 px-4 py-3 hover:bg-dark-900 transition-colors group">
+                    <div class="w-8 h-8 bg-olive-700/30 rounded-lg flex items-center justify-center 
+                                group-hover:bg-olive-700 transition-colors">
+                      <i class="fas fa-user-edit text-olive-400 group-hover:text-white text-sm"></i>
+                    </div>
+                    <div class="flex-1">
+                      <p class="text-sm font-medium text-white group-hover:text-olive-400 transition-colors">
+                        Edit Information
+                      </p>
+                      <p class="text-xs text-gray-500">Update your profile</p>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-600 text-xs group-hover:text-olive-400"></i>
+                  </a>
+
+                  <!-- Divider -->
+                  <div class="border-t border-dark-700 my-2"></div>
+
+                  <!-- Logout -->
+                  <a href="{% url 'logout' %}" 
+                     class="flex items-center space-x-3 px-4 py-3 hover:bg-red-900/20 transition-colors group">
+                    <div class="w-8 h-8 bg-red-700/30 rounded-lg flex items-center justify-center 
+                                group-hover:bg-red-700 transition-colors">
+                      <i class="fas fa-sign-out-alt text-red-400 group-hover:text-white text-sm"></i>
+                    </div>
+                    <div class="flex-1">
+                      <p class="text-sm font-medium text-white group-hover:text-red-400 transition-colors">
+                        Logout
+                      </p>
+                      <p class="text-xs text-gray-500">Sign out of your account</p>
+                    </div>
+                    <i class="fas fa-chevron-right text-gray-600 text-xs group-hover:text-red-400"></i>
+                  </a>
+                </div>
+
+                <!-- Footer -->
+                <div class="px-4 py-2 bg-dark-900 border-t border-dark-700">
+                  <p class="text-xs text-gray-500 text-center">
+                    <i class="fas fa-shield-alt mr-1"></i>
+                    Secure Session
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- Contenido principal con padding generoso -->
+      <div class="p-8 fade-in min-h-screen">
+        {% block content %}{% endblock %}
+      </div>
+    </div>
+  </div>
+
+ <script>
+  // ============================================
+  // SIDEBAR TOGGLE (Mobile)
+  // ============================================
+  document.addEventListener('DOMContentLoaded', function() {
+    const toggleBtn = document.getElementById("toggleSidebar");
+    const sidebar = document.getElementById("sidebar");
+    
+    if (toggleBtn && sidebar) {
+      toggleBtn.addEventListener("click", () => {
+        sidebar.classList.toggle("-translate-x-full");
+      });
+    }
+
+    // ============================================
+    // PROFILE DROPDOWN - DEBUGGED VERSION
+    // ============================================
+    const profileBtn = document.getElementById('profileDropdownBtn');
+    const profileDropdown = document.getElementById('profileDropdown');
+    
+    console.log('Profile Button:', profileBtn);
+    console.log('Profile Dropdown:', profileDropdown);
+    
+    if (profileBtn && profileDropdown) {
+      let isOpen = false;
+      
+      // Abrir/cerrar dropdown
+      profileBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        console.log('Botón clickeado, estado actual:', isOpen);
+        
+        if (isOpen) {
+          // Cerrar dropdown
+          profileDropdown.classList.add('hidden');
+          profileDropdown.classList.remove('dropdown-open');
+          isOpen = false;
+          console.log('Dropdown cerrado');
+        } else {
+          // Abrir dropdown
+          profileDropdown.classList.remove('hidden');
+          profileDropdown.classList.add('dropdown-open');
+          isOpen = true;
+          console.log('Dropdown abierto');
+        }
+      });
+
+      // Cerrar al hacer clic fuera
+      document.addEventListener('click', function(e) {
+        if (isOpen && 
+            !profileDropdown.contains(e.target) && 
+            !profileBtn.contains(e.target)) {
+          profileDropdown.classList.add('hidden');
+          profileDropdown.classList.remove('dropdown-open');
+          isOpen = false;
+          console.log('Dropdown cerrado por clic fuera');
+        }
+      });
+
+      // Cerrar con Escape
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && isOpen) {
+          profileDropdown.classList.add('hidden');
+          profileDropdown.classList.remove('dropdown-open');
+          isOpen = false;
+          console.log('Dropdown cerrado con Escape');
+        }
+      });
+
+      // Prevenir que se cierre al hacer clic dentro
+      profileDropdown.addEventListener('click', function(e) {
+        e.stopPropagation();
+      });
+    } else {
+      console.error('No se encontraron los elementos del dropdown');
+    }
+  });
+</script>
+
+</body>
+</html>

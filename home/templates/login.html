@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="min-h-screen flex items-center justify-center p-4 relative overflow-hidden">
+  
+  <!-- Fondo con patrón de huellas -->
+  <div class="absolute inset-0 opacity-5">
+    <div class="absolute top-10 left-10 text-olive-600 text-6xl transform rotate-12">
+      <i class="fas fa-paw"></i>
+    </div>
+    <div class="absolute top-32 right-20 text-olive-600 text-4xl transform -rotate-45">
+      <i class="fas fa-paw"></i>
+    </div>
+    <div class="absolute bottom-20 left-32 text-olive-600 text-5xl transform rotate-45">
+      <i class="fas fa-paw"></i>
+    </div>
+    <div class="absolute bottom-10 right-10 text-olive-600 text-6xl transform -rotate-12">
+      <i class="fas fa-paw"></i>
+    </div>
+  </div>
+
+  <div class="w-full max-w-5xl grid lg:grid-cols-2 gap-0 bg-dark-800 rounded-3xl shadow-2xl overflow-hidden 
+              border border-dark-700 relative z-10">
+    
+    <!-- Panel izquierdo - Imagen veterinaria -->
+    <div class="hidden lg:flex flex-col justify-center items-center p-12 bg-gradient-to-br from-olive-800 to-olive-700 
+                relative overflow-hidden">
+      
+      <!-- Overlay con patrón -->
+      <div class="absolute inset-0 opacity-10">
+        <img src="https://images.unsplash.com/photo-1548681528-6a5c45b66b42?w=800" 
+             class="w-full h-full object-cover" alt="Veterinary">
+      </div>
+
+      <div class="relative z-10 text-center">
+        <!-- Logo -->
+        <div class="w-32 h-32 mx-auto mb-6 bg-white rounded-full flex items-center justify-center shadow-2xl 
+                    transform hover:scale-110 transition-transform duration-300">
+          <i class="fas fa-paw text-olive-700 text-5xl"></i>
+        </div>
+
+        <h1 class="text-4xl font-bold text-white mb-4">
+          Welcome to PetCare
+        </h1>
+        <p class="text-olive-100 text-lg mb-6">
+          Professional Veterinary Clinic System
+        </p>
+
+        <!-- Características -->
+        <div class="space-y-4 text-left mt-8">
+          <div class="flex items-center space-x-3 text-white">
+            <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+              <i class="fas fa-calendar-check text-white"></i>
+            </div>
+            <span class="text-olive-50">Easy appointment scheduling</span>
+          </div>
+          <div class="flex items-center space-x-3 text-white">
+            <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+              <i class="fas fa-dog text-white"></i>
+            </div>
+            <span class="text-olive-50">Complete pet health records</span>
+          </div>
+          <div class="flex items-center space-x-3 text-white">
+            <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
+              <i class="fas fa-user-md text-white"></i>
+            </div>
+            <span class="text-olive-50">Expert veterinary care</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel derecho - Formulario de login -->
+    <div class="p-12 flex flex-col justify-center">
+      
+      <!-- Logo móvil -->
+      <div class="lg:hidden text-center mb-8">
+        <div class="w-20 h-20 mx-auto mb-4 bg-olive-700 rounded-full flex items-center justify-center">
+          <i class="fas fa-paw text-white text-3xl"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-white">PetCare</h2>
+        <p class="text-gray-400 text-sm">Veterinary Clinic System</p>
+      </div>
+
+      <div class="mb-8">
+        <h2 class="text-3xl font-bold text-white mb-2">
+          <i class="fas fa-sign-in-alt text-olive-500 mr-2"></i>
+          Sign In
+        </h2>
+        <p class="text-gray-400">Access your veterinary account</p>
+      </div>
+
+      <!-- Mensajes de error/éxito -->
+      {% if messages %}
+        {% for message in messages %}
+          <div class="mb-4 p-4 rounded-lg {% if message.tags == 'error' %}bg-red-900/30 border border-red-700 text-red-300{% else %}bg-green-900/30 border border-green-700 text-green-300{% endif %}">
+            <i class="fas {% if message.tags == 'error' %}fa-exclamation-circle{% else %}fa-check-circle{% endif %} mr-2"></i>
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <form method="POST" action="{% url 'login' %}" class="space-y-6">
+        {% csrf_token %}
+        
+        <!-- Email -->
+        <div class="group">
+          <label class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-envelope text-olive-500 mr-2"></i>
+            Email Address
+          </label>
+          <div class="relative">
+            <input type="email" name="email" required
+              class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                     focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                     transition-all duration-300 group-hover:border-olive-700"
+              placeholder="your@email.com">
+            <div class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500">
+              <i class="fas fa-user"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div class="group">
+          <label class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-lock text-olive-500 mr-2"></i>
+            Password
+          </label>
+          <div class="relative">
+            <input type="password" name="password" id="password" required
+              class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                     focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                     transition-all duration-300 group-hover:border-olive-700"
+              placeholder="••••••••">
+            <button type="button" onclick="togglePassword()" 
+                    class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-olive-500 transition-colors">
+              <i class="fas fa-eye" id="toggleIcon"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Remember me & Forgot password -->
+        <div class="flex items-center justify-between text-sm">
+          <label class="flex items-center text-gray-400 cursor-pointer group">
+            <input type="checkbox" class="w-4 h-4 rounded border-dark-600 text-olive-600 
+                                          focus:ring-olive-600 focus:ring-offset-dark-800 mr-2">
+            <span class="group-hover:text-olive-400 transition-colors">Remember me</span>
+          </label>
+          <a href="#" class="text-olive-500 hover:text-olive-400 transition-colors">
+            Forgot password?
+          </a>
+        </div>
+
+        <!-- Login Button -->
+        <button type="submit"
+          class="w-full bg-gradient-to-r from-olive-700 to-olive-600 text-white font-semibold py-3 rounded-lg 
+                 hover:from-olive-600 hover:to-olive-500 transform hover:scale-[1.02] active:scale-[0.98]
+                 transition-all duration-300 shadow-lg hover:shadow-olive-500/50">
+          <i class="fas fa-sign-in-alt mr-2"></i>
+          Sign In
+        </button>
+      </form>
+
+      <!-- Divider -->
+      <div class="flex items-center my-6">
+        <div class="flex-1 border-t border-dark-600"></div>
+        <span class="px-4 text-gray-500 text-sm">OR</span>
+        <div class="flex-1 border-t border-dark-600"></div>
+      </div>
+
+      <!-- Register Link -->
+      <div class="text-center">
+        <p class="text-gray-400 mb-4">
+          Don't have an account?
+        </p>
+        <a href="{% url 'register' %}" 
+           class="inline-flex items-center space-x-2 text-olive-500 hover:text-olive-400 font-semibold
+                  border border-olive-700 hover:border-olive-600 px-6 py-2 rounded-lg
+                  transition-all duration-300 hover:bg-olive-900/20">
+          <i class="fas fa-user-plus"></i>
+          <span>Create Account</span>
+        </a>
+      </div>
+
+      <!-- Footer info -->
+      <div class="mt-8 text-center text-gray-500 text-xs">
+        <p>
+          <i class="fas fa-shield-alt text-olive-600 mr-1"></i>
+          Secure login powered by PetCare
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  function togglePassword() {
+    const passwordInput = document.getElementById('password');
+    const toggleIcon = document.getElementById('toggleIcon');
+    
+    if (passwordInput.type === 'password') {
+      passwordInput.type = 'text';
+      toggleIcon.classList.remove('fa-eye');
+      toggleIcon.classList.add('fa-eye-slash');
+    } else {
+      passwordInput.type = 'password';
+      toggleIcon.classList.remove('fa-eye-slash');
+      toggleIcon.classList.add('fa-eye');
+    }
+  }
+
+  // Animación de entrada
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    form.style.opacity = '0';
+    form.style.transform = 'translateY(20px)';
+    
+    setTimeout(() => {
+      form.style.transition = 'all 0.5s ease-in-out';
+      form.style.opacity = '1';
+      form.style.transform = 'translateY(0)';
+    }, 100);
+  });
+</script>
+
+{% endblock %}
