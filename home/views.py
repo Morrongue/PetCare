@@ -909,13 +909,26 @@ def edit_cita(request, id):
         messages.error(request, "You don't have permission to edit this appointment.")
         return redirect("list_citas")
     
-    # Obtener mascotas y vets
+    # ============================================
+    # 🔧 SECCIÓN MODIFICADA - Obtener mascotas y vets
+    # ============================================
+    
     if rol == "Cliente":
+        # 🔹 CLIENTE: Solo sus propias mascotas
         mascotas = []
         for m in pacientes.find({"id_user": current_user_id}):
             m["id"] = str(m["_id"])
+            # 🔹 AGREGAR display_name para clientes
+            m["display_name"] = f"{m.get('nombre', 'Unknown')} ({m.get('especie', 'Unknown')})"
             mascotas.append(m)
+        
+        # 🔹 VERIFICAR si tiene mascotas
+        if not mascotas:
+            messages.warning(request, "You don't have any registered pets. Please add a pet first.")
+            return redirect("add_mascota")
+    
     else:
+        # 🔹 ADMIN/VET: Todas las mascotas
         mascotas = []
         for m in pacientes.find():
             m["id"] = str(m["_id"])
@@ -924,29 +937,153 @@ def edit_cita(request, id):
             m["display_name"] = f"{m.get('nombre', 'Unknown')} ({m.get('especie', 'Unknown')}) - Owner: {owner_name}"
             mascotas.append(m)
     
+    # Obtener veterinarios
     vets = []
     for v in veterinarios.find():
         v["id"] = str(v["_id"])
         vets.append(v)
 
+    # ============================================
+    # 🔧 SECCIÓN MODIFICADA - Procesar formulario (POST)
+    # ============================================
+    
     if request.method == "POST":
-        motivo = request.POST.get("motivo")
+        id_paciente = request.POST.get("paciente")
+        id_veterinario = request.POST.get("veterinario")
+        fecha_str = request.POST.get("fecha")
+        motivo = request.POST.get("motivo", "").strip()
         
+        # Validaciones
+        if not all([id_paciente, id_veterinario, fecha_str, motivo]):
+            messages.error(request, "Please fill all required fields.")
+            # Re-renderizar con los datos actuales
+            cita["id_str"] = str(cita["_id"])
+            return render(request, "appointments_form.html", {
+                "cita": cita,
+                "mascotas": mascotas,
+                "vets": vets,
+                "action": "Edit",
+                "rol": rol,
+                "username": username
+            })
+        
+        # Validar que la mascota pertenezca al usuario (si es cliente)
+        if rol == "Cliente":
+            mascota_seleccionada = pacientes.find_one({"_id": ObjectId(id_paciente)})
+            if not mascota_seleccionada or mascota_seleccionada.get("id_user") != current_user_id:
+                messages.error(request, "You can only edit appointments for your own pets.")
+                cita["id_str"] = str(cita["_id"])
+                return render(request, "appointments_form.html", {
+                    "cita": cita,
+                    "mascotas": mascotas,
+                    "vets": vets,
+                    "action": "Edit",
+                    "rol": rol,
+                    "username": username
+                })
+        
+        # Validar formato de fecha
+        try:
+            from datetime import datetime, timedelta
+            fecha_obj = datetime.strptime(fecha_str, "%Y-%m-%dT%H:%M")
+        except ValueError:
+            messages.error(request, "Invalid date format.")
+            cita["id_str"] = str(cita["_id"])
+            return render(request, "appointments_form.html", {
+                "cita": cita,
+                "mascotas": mascotas,
+                "vets": vets,
+                "action": "Edit",
+                "rol": rol,
+                "username": username
+            })
+        
+        # Validaciones de fecha
+        now = datetime.now()
+        minimum_time = now + timedelta(hours=1)
+        
+        if fecha_obj < minimum_time:
+            messages.error(request, "Appointments must be scheduled at least 1 hour in advance.")
+            cita["id_str"] = str(cita["_id"])
+            return render(request, "appointments_form.html", {
+                "cita": cita,
+                "mascotas": mascotas,
+                "vets": vets,
+                "action": "Edit",
+                "rol": rol,
+                "username": username
+            })
+        
+        # No puede ser fin de semana
+        if fecha_obj.weekday() >= 5:
+            messages.error(request, "Appointments are only available Monday through Friday.")
+            cita["id_str"] = str(cita["_id"])
+            return render(request, "appointments_form.html", {
+                "cita": cita,
+                "mascotas": mascotas,
+                "vets": vets,
+                "action": "Edit",
+                "rol": rol,
+                "username": username
+            })
+        
+        # Verificar horario de oficina (8 AM - 7 PM)
+        hour = fecha_obj.hour
+        if hour < 8 or hour >= 19:
+            messages.error(request, "Appointments must be between 8:00 AM and 7:00 PM.")
+            cita["id_str"] = str(cita["_id"])
+            return render(request, "appointments_form.html", {
+                "cita": cita,
+                "mascotas": mascotas,
+                "vets": vets,
+                "action": "Edit",
+                "rol": rol,
+                "username": username
+            })
+        
+        # Verificar horario de almuerzo (12 PM - 2 PM)
+        if 12 <= hour < 14:
+            messages.error(request, "No appointments during lunch break (12:00 PM - 2:00 PM).")
+            cita["id_str"] = str(cita["_id"])
+            return render(request, "appointments_form.html", {
+                "cita": cita,
+                "mascotas": mascotas,
+                "vets": vets,
+                "action": "Edit",
+                "rol": rol,
+                "username": username
+            })
+        
+        # Actualizar la cita
         citas.update_one({"_id": ObjectId(id)}, {"$set": {
+            "id_paciente": id_paciente,
+            "id_veterinario": id_veterinario,
+            "fecha": fecha_obj.strftime("%Y-%m-%dT%H:%M"),
             "motivo": motivo,
         }})
+        
         messages.success(request, "Appointment updated successfully.")
         return redirect("list_citas")
 
+    # ============================================
+    # Preparar datos de la cita para el formulario
+    # ============================================
+    
     cita["id_str"] = str(cita["_id"])
+    # 🔹 Convertir los ObjectId a strings para el template
+    cita["id_paciente"] = str(cita.get("id_paciente", ""))
+    cita["id_veterinario"] = str(cita.get("id_veterinario", ""))
 
     return render(request, "appointments_form.html", {
         "cita": cita,
         "mascotas": mascotas,
         "vets": vets,
         "action": "Edit",
-        "rol": rol
+        "rol": rol,
+        "username": username
     })
+
+
 
 # ============================================
 # PANEL DE ADMINISTRADOR - USUARIOS
