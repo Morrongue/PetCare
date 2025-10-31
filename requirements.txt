@@ -3,3 +3,5 @@ gunicorn
 whitenoise
 psycopg2-binary
 python-dotenv
+pymongo==4.6.0
+djongo
