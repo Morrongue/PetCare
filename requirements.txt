@@ -1,4 +1,8 @@
 Django==5.2.7
 gunicorn==21.2.0
 whitenoise==6.6.0
+<<<<<<< HEAD
 pymongo==4.6.0  
+=======
+pymongo==4.6.0  
+>>>>>>> c59d904c0bf999aa429c13a24fe8df5583bc9bfd
