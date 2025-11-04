@@ -673,8 +673,9 @@
       licenseContainer.style.display = 'flex';
     }
     
-    // Edit link
-    document.getElementById('modalEditLink').href = `/edit_veterinario/${vet.id}/`;
+    // Edit link - Obtener URL del botón de editar de la card
+    const editButton = document.querySelector(`a[href*="edit_veterinario"][href*="${vet.id}"]`);
+    document.getElementById('modalEditLink').href = editButton ? editButton.href : `/vets/edit/${vet.id}/`;
     
     // Mostrar modal con animación
     modal.classList.remove('hidden');
