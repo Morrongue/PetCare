@@ -123,7 +123,7 @@
                     transform hover:-translate-y-2 transition-all duration-300 group"
              data-name="{{ vet.nombre|lower }}"
              data-specialty="{{ vet.especialidad|lower }}"
-             data-email="{{ vet.email|default:''|lower }}"
+             data-email="{{ vet.Email|default:''|lower }}"
              data-phone="{{ vet.phone|default:''|lower }}"
              data-license="{{ vet.license|default:''|lower }}">
           
@@ -176,7 +176,7 @@
 
             <!-- Hidden text for search -->
             <div class="hidden">
-              <span class="vet-email">{{ vet.email|default:'' }}</span>
+              <span class="vet-email">{{ vet.Email|default:'' }}</span>
               <span class="vet-phone">{{ vet.phone|default:'' }}</span>
               <span class="vet-license">{{ vet.license|default:'' }}</span>
             </div>
@@ -212,7 +212,7 @@
               id: '{{ vet.id }}',
               nombre: '{{ vet.nombre|escapejs }}',
               especialidad: '{{ vet.especialidad|escapejs }}',
-              email: '{% if vet.email %}{{ vet.email|escapejs }}{% endif %}',
+              email: '{% if vet.Email %}{{ vet.Email|escapejs }}{% endif %}',
               phone: '{% if vet.phone %}{{ vet.phone|escapejs }}{% endif %}',
               license: '{% if vet.license %}{{ vet.license|escapejs }}{% endif %}',
               profile_picture: '{% if vet.profile_picture %}{{ vet.profile_picture|escapejs }}{% endif %}'
@@ -470,6 +470,7 @@
     document.getElementById('modalName').textContent = 'Dr. ' + vet.nombre;
     document.getElementById('modalSpecialty').textContent = vet.especialidad;
     
+    // ✅ CORREGIDO: usar vet.email (minúscula) que viene del parámetro
     if (vet.email) {
       document.getElementById('modalEmail').textContent = vet.email;
       document.getElementById('modalEmailLink').href = 'mailto:' + vet.email;

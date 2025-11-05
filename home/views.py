@@ -4,12 +4,13 @@ from django.contrib import messages
 from .models import users, pacientes, veterinarios, citas
 from collections import Counter
 from bson import ObjectId
-from datetime import datetime, time, timedelta
+from datetime import datetime, timedelta
+from datetime import time as dt_time 
 import os
 import time 
 import base64
 
-
+ROL_FIELD = "Rol"  
 
 
 # ---- Dashboard principal ----
@@ -51,8 +52,8 @@ def index(request):
         especies_counter = Counter([m.get("especie", "Unknown") for m in especies])
         especies_data = [{"especie": k, "cantidad": v} for k, v in especies_counter.most_common(5)]
         
-        # Total de veterinarios (perfiles)
-        total_veterinarios = veterinarios.count_documents({})
+        # ✅ CAMBIO: Total de veterinarios de USERS
+        total_veterinarios = users.count_documents({"Rol": "Veterinario"})
         
         # Citas totales
         total_citas = citas.count_documents({})
@@ -68,12 +69,15 @@ def index(request):
         inicio_semana = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime("%Y-%m-%d")
         citas_semana = citas.count_documents({"fecha": {"$gte": inicio_semana}})
         
-        # Top 5 veterinarios con más citas
+        # ✅ CAMBIO: Top 5 veterinarios de USERS con más citas
         todas_citas = list(citas.find({}, {"id_veterinario": 1}))
         vet_counter = Counter([c.get("id_veterinario") for c in todas_citas if c.get("id_veterinario")])
         top_vets = []
         for vet_id, count in vet_counter.most_common(5):
-            vet = veterinarios.find_one({"_id": ObjectId(vet_id)})
+            vet = users.find_one({
+                "_id": ObjectId(vet_id),
+                "Rol": "Veterinario"
+            })
             if vet:
                 top_vets.append({
                     "nombre": vet.get("nombre", "Unknown"),
@@ -100,19 +104,32 @@ def index(request):
     
     # ========== ESTADÍSTICAS PARA VETERINARIO ==========
     elif rol == "Veterinario":
-        # Todas las citas (el veterinario ve todas)
-        total_citas = citas.count_documents({})
-        citas_pendientes = citas.count_documents({"estado": "Pendiente"})
-        citas_completadas = citas.count_documents({"estado": "Completada"})
+        # ✅ CAMBIO: Citas del veterinario actual, no todas
+        total_citas = citas.count_documents({"id_veterinario": user_id})
+        citas_pendientes = citas.count_documents({
+            "id_veterinario": user_id,
+            "estado": "Pendiente"
+        })
+        citas_completadas = citas.count_documents({
+            "id_veterinario": user_id,
+            "estado": "Completada"
+        })
         
-        # Citas de hoy
+        # Citas de hoy del veterinario
         hoy = datetime.now().strftime("%Y-%m-%d")
-        citas_hoy_list = list(citas.find({"fecha": {"$regex": f"^{hoy}"}}))
+        citas_hoy_list = list(citas.find({
+            "id_veterinario": user_id,
+            "fecha": {"$regex": f"^{hoy}"}
+        }))
         
         # Enriquecer citas de hoy con info de mascota y veterinario
         for c in citas_hoy_list:
             mascota = pacientes.find_one({"_id": ObjectId(c.get("id_paciente"))}) if c.get("id_paciente") else None
-            vet = veterinarios.find_one({"_id": ObjectId(c.get("id_veterinario"))}) if c.get("id_veterinario") else None
+            # ✅ CAMBIO: Buscar vet en USERS
+            vet = users.find_one({
+                "_id": ObjectId(c.get("id_veterinario")),
+                "Rol": "Veterinario"
+            }) if c.get("id_veterinario") else None
             
             c["mascota_nombre"] = mascota.get("nombre", "Unknown") if mascota else "Unknown"
             c["veterinario_nombre"] = vet.get("nombre", "Unknown") if vet else "Unknown"
@@ -126,12 +143,20 @@ def index(request):
         # Total de mascotas en el sistema
         total_mascotas = pacientes.count_documents({})
         
-        # Próximas 5 citas
-        todas_citas_futuras = list(citas.find({"fecha": {"$gte": datetime.now().strftime("%Y-%m-%dT%H:%M")}}).limit(5))
+        # ✅ CAMBIO: Próximas 5 citas del veterinario
+        todas_citas_futuras = list(citas.find({
+            "id_veterinario": user_id,
+            "fecha": {"$gte": datetime.now().strftime("%Y-%m-%dT%H:%M")}
+        }).sort("fecha", 1).limit(5))
+        
         proximas_citas = []
         for c in todas_citas_futuras:
             mascota = pacientes.find_one({"_id": ObjectId(c.get("id_paciente"))})
-            vet = veterinarios.find_one({"_id": ObjectId(c.get("id_veterinario"))})
+            # ✅ CAMBIO: Buscar vet en USERS
+            vet = users.find_one({
+                "_id": ObjectId(c.get("id_veterinario")),
+                "Rol": "Veterinario"
+            })
             
             try:
                 fecha_dt = datetime.strptime(c.get("fecha", ""), "%Y-%m-%dT%H:%M")
@@ -179,7 +204,11 @@ def index(request):
                 fecha_dt = datetime.strptime(c.get("fecha", ""), "%Y-%m-%dT%H:%M")
                 if fecha_dt >= datetime.now():
                     mascota = pacientes.find_one({"_id": ObjectId(c.get("id_paciente"))})
-                    vet = veterinarios.find_one({"_id": ObjectId(c.get("id_veterinario"))})
+                    # ✅ CAMBIO: Buscar vet en USERS
+                    vet = users.find_one({
+                        "_id": ObjectId(c.get("id_veterinario")),
+                        "Rol": "Veterinario"
+                    })
                     
                     proximas_citas.append({
                         "mascota": mascota.get("nombre", "Unknown") if mascota else "Unknown",
@@ -218,6 +247,7 @@ def index(request):
         })
     
     return render(request, "index.html", context)
+
 
 
 #  ---- REGISTRO DE USUARIO ----
@@ -545,7 +575,7 @@ def delete_paciente(request, id):
 
 
 def list_veterinarios(request):
-    """Lista todos los veterinarios (solo admin)."""
+    """Lista todos los veterinarios (usuarios con rol Veterinario)."""
     if "user" not in request.session:
         messages.warning(request, "Please log in first.")
         return redirect("login")
@@ -555,8 +585,8 @@ def list_veterinarios(request):
         messages.error(request, "Access denied. Administrator privileges required.")
         return redirect("index")
 
-    # Obtener todos los veterinarios
-    data = list(veterinarios.find())
+    # Obtener todos los usuarios con rol "Veterinario"
+    data = list(users.find({"Rol": "Veterinario"}))
     for v in data:
         v["id"] = str(v["_id"])
 
@@ -570,7 +600,7 @@ def list_veterinarios(request):
 
 
 def add_veterinario(request):
-    """Agrega un nuevo veterinario con información completa y foto de perfil."""
+    """Agrega un nuevo veterinario (usuario con rol Veterinario)."""
     if "user" not in request.session:
         messages.warning(request, "Please log in first.")
         return redirect("login")
@@ -580,35 +610,53 @@ def add_veterinario(request):
         return redirect("index")
 
     if request.method == "POST":
+        # Datos de usuario
+        username = request.POST.get("username", "").strip()
+        email = request.POST.get("email", "").strip()
+        password = request.POST.get("password", "").strip()
+        
+        # Datos de veterinario
         nombre = request.POST.get("nombre", "").strip()
         especialidad = request.POST.get("especialidad", "").strip()
-        email = request.POST.get("email", "").strip()
         phone = request.POST.get("phone", "").strip()
         license = request.POST.get("license", "").strip()
 
         # Validar campos requeridos
-        if not nombre or not especialidad:
-            messages.error(request, "Name and specialty are required.")
+        if not username or not email or not password or not nombre or not especialidad:
+            messages.error(request, "Username, email, password, name and specialty are required.")
+            return redirect("add_veterinario")
+        
+        # Validar longitud de contraseña
+        if len(password) < 6:
+            messages.error(request, "Password must be at least 6 characters long.")
             return redirect("add_veterinario")
 
+        # Validar username único
+        if users.find_one({"User": username}):
+            messages.error(request, "Username already exists.")
+            return redirect("add_veterinario")
+        
         # Validar email único
-        if email and veterinarios.find_one({"email": email}):
-            messages.error(request, "A veterinarian with this email already exists.")
+        if users.find_one({"Email": email}):
+            messages.error(request, "Email already in use.")
             return redirect("add_veterinario")
 
-        # Validar licencia única
-        if license and veterinarios.find_one({"license": license}):
+        # Validar licencia única (si se proporciona)
+        if license and users.find_one({"license": license}):
             messages.error(request, "A veterinarian with this license number already exists.")
             return redirect("add_veterinario")
 
-        # Preparar datos del veterinario
+        # Preparar datos del usuario veterinario
         vet_data = {
+            "User": username,
+            "Email": email,
+            "Password": password,  # En producción deberías hashear esto
+            "Rol": "Veterinario",
             "nombre": nombre,
             "especialidad": especialidad,
-            "email": email,
             "phone": phone,
             "license": license,
-            "profile_picture": None  # Inicializar como None
+            "profile_picture": None
         }
 
         # ===================================================
@@ -645,18 +693,18 @@ def add_veterinario(request):
                 # Agregar a los datos
                 vet_data["profile_picture"] = data_uri
                 
-                print(f"✅ Foto guardada para {nombre}: {len(base64_image)} caracteres")
+                print(f"✅ Foto guardada para Dr. {nombre}: {len(base64_image)} caracteres")
                 
             except Exception as e:
                 print(f"❌ Error procesando imagen: {str(e)}")
                 messages.error(request, f"Error processing image: {str(e)}")
                 return redirect("add_veterinario")
 
-        # Insertar veterinario
-        result = veterinarios.insert_one(vet_data)
+        # Insertar veterinario en users
+        result = users.insert_one(vet_data)
         print(f"✅ Veterinario insertado con ID: {result.inserted_id}")
         
-        messages.success(request, f"Dr. {nombre} added successfully.")
+        messages.success(request, f"Dr. {nombre} added successfully with username: {username}")
         return redirect("list_veterinarios")
 
     # GET request
@@ -670,7 +718,7 @@ def add_veterinario(request):
 
 
 def edit_veterinario(request, id):
-    """Edita un veterinario existente con información completa y foto de perfil."""
+    """Edita un veterinario (usuario con rol Veterinario)."""
     if "user" not in request.session:
         messages.warning(request, "Please log in first.")
         return redirect("login")
@@ -679,22 +727,42 @@ def edit_veterinario(request, id):
         messages.error(request, "Only administrators can edit veterinarians.")
         return redirect("index")
 
-    vet = veterinarios.find_one({"_id": ObjectId(id)})
+    vet = users.find_one({"_id": ObjectId(id), "Rol": "Veterinario"})
     if not vet:
         messages.error(request, "Veterinarian not found.")
         return redirect("list_veterinarios")
 
     if request.method == "POST":
+        # Datos de usuario
+        username = request.POST.get("username", "").strip()
+        email = request.POST.get("email", "").strip()
+        password_nueva = request.POST.get("password", "").strip()
+        
+        # Datos de veterinario
         nombre = request.POST.get("nombre", "").strip()
         especialidad = request.POST.get("especialidad", "").strip()
-        email = request.POST.get("email", "").strip()
         phone = request.POST.get("phone", "").strip()
         license = request.POST.get("license", "").strip()
         remove_profile_picture = request.POST.get("remove_profile_picture", "") == "true"
 
         # Validar campos requeridos
-        if not nombre or not especialidad:
-            messages.error(request, "Name and specialty are required.")
+        if not username or not email or not nombre or not especialidad:
+            messages.error(request, "Username, email, name and specialty are required.")
+            context = {
+                "action": "Edit",
+                "vet": vet,
+                "rol": request.session.get("rol"),
+                "username": request.session.get("user")
+            }
+            return render(request, "vets_form.html", context)
+
+        # Validar username único (excepto el actual)
+        existing_user = users.find_one({
+            "User": username,
+            "_id": {"$ne": ObjectId(id)}
+        })
+        if existing_user:
+            messages.error(request, "Username already exists.")
             context = {
                 "action": "Edit",
                 "vet": vet,
@@ -704,24 +772,23 @@ def edit_veterinario(request, id):
             return render(request, "vets_form.html", context)
 
         # Validar email único (excepto el actual)
-        if email:
-            existing_email = veterinarios.find_one({
-                "email": email,
-                "_id": {"$ne": ObjectId(id)}
-            })
-            if existing_email:
-                messages.error(request, "Another veterinarian already has this email.")
-                context = {
-                    "action": "Edit",
-                    "vet": vet,
-                    "rol": request.session.get("rol"),
-                    "username": request.session.get("user")
-                }
-                return render(request, "vets_form.html", context)
+        existing_email = users.find_one({
+            "Email": email,
+            "_id": {"$ne": ObjectId(id)}
+        })
+        if existing_email:
+            messages.error(request, "Email already in use.")
+            context = {
+                "action": "Edit",
+                "vet": vet,
+                "rol": request.session.get("rol"),
+                "username": request.session.get("user")
+            }
+            return render(request, "vets_form.html", context)
 
         # Validar licencia única (excepto la actual)
         if license:
-            existing_license = veterinarios.find_one({
+            existing_license = users.find_one({
                 "license": license,
                 "_id": {"$ne": ObjectId(id)}
             })
@@ -737,12 +804,26 @@ def edit_veterinario(request, id):
 
         # Preparar datos de actualización
         update_data = {
+            "User": username,
+            "Email": email,
             "nombre": nombre,
             "especialidad": especialidad,
-            "email": email,
             "phone": phone,
             "license": license
         }
+        
+        # Actualizar contraseña solo si se proporciona
+        if password_nueva:
+            if len(password_nueva) < 6:
+                messages.error(request, "Password must be at least 6 characters long.")
+                context = {
+                    "action": "Edit",
+                    "vet": vet,
+                    "rol": request.session.get("rol"),
+                    "username": request.session.get("user")
+                }
+                return render(request, "vets_form.html", context)
+            update_data["Password"] = password_nueva
 
         # ===================================================
         # MANEJO DE FOTO DE PERFIL
@@ -751,7 +832,7 @@ def edit_veterinario(request, id):
         # Opción 1: Eliminar foto actual
         if remove_profile_picture:
             update_data["profile_picture"] = None
-            print(f"🗑️ Eliminando foto de {nombre}")
+            print(f"🗑️ Eliminando foto de Dr. {nombre}")
         
         # Opción 2: Subir nueva foto
         if 'profile_picture' in request.FILES and not remove_profile_picture:
@@ -802,7 +883,7 @@ def edit_veterinario(request, id):
                 # Agregar a los datos de actualización
                 update_data["profile_picture"] = data_uri
                 
-                print(f"✅ Nueva foto para {nombre}: {len(base64_image)} caracteres")
+                print(f"✅ Nueva foto para Dr. {nombre}: {len(base64_image)} caracteres")
                 
             except Exception as e:
                 print(f"❌ Error procesando imagen: {str(e)}")
@@ -816,8 +897,8 @@ def edit_veterinario(request, id):
                 return render(request, "vets_form.html", context)
 
         # Actualizar veterinario
-        veterinarios.update_one({"_id": ObjectId(id)}, {"$set": update_data})
-        print(f"✅ Veterinario {nombre} actualizado")
+        users.update_one({"_id": ObjectId(id)}, {"$set": update_data})
+        print(f"✅ Veterinario Dr. {nombre} actualizado")
         
         messages.success(request, f"Dr. {nombre} updated successfully.")
         return redirect("list_veterinarios")
@@ -833,7 +914,7 @@ def edit_veterinario(request, id):
 
 
 def delete_veterinario(request, id):
-    """Elimina un veterinario del sistema."""
+    """Elimina un veterinario (usuario con rol Veterinario)."""
     if "user" not in request.session:
         messages.warning(request, "Please log in first.")
         return redirect("login")
@@ -842,7 +923,7 @@ def delete_veterinario(request, id):
         messages.error(request, "Only administrators can delete veterinarians.")
         return redirect("index")
 
-    vet = veterinarios.find_one({"_id": ObjectId(id)})
+    vet = users.find_one({"_id": ObjectId(id), "Rol": "Veterinario"})
     if not vet:
         messages.error(request, "Veterinarian not found.")
         return redirect("list_veterinarios")
@@ -854,72 +935,54 @@ def delete_veterinario(request, id):
     #     "estado": "Pendiente"
     # })
     # if citas_pendientes > 0:
-    #     messages.error(request, f"Cannot delete Dr. {vet['nombre']}. There are {citas_pendientes} pending appointments.")
+    #     messages.error(request, f"Cannot delete Dr. {vet.get('nombre', vet.get('User'))}. There are {citas_pendientes} pending appointments.")
     #     return redirect("list_veterinarios")
 
-    veterinarios.delete_one({"_id": ObjectId(id)})
-    print(f"🗑️ Veterinario {vet['nombre']} eliminado")
+    users.delete_one({"_id": ObjectId(id)})
+    print(f"🗑️ Veterinario Dr. {vet.get('nombre', vet.get('User'))} eliminado")
     
-    messages.info(request, f"Dr. {vet['nombre']} has been deleted from the system.")
+    messages.info(request, f"Dr. {vet.get('nombre', vet.get('User'))} has been deleted from the system.")
     return redirect("list_veterinarios")
 
 
-# ------------------ CRUD de Citas ------------------
 
 
-
+# -------------------- FUNCIÓN AUXILIAR: ACTUALIZAR ESTADOS AUTOMÁTICAMENTE --------------------
 
 # -------------------- FUNCIÓN AUXILIAR: ACTUALIZAR ESTADOS AUTOMÁTICAMENTE --------------------
 def actualizar_estados_citas_automaticamente():
     """
     Actualiza automáticamente el estado de las citas a 'Completada' 
     cuando ha pasado el tiempo suficiente desde su inicio.
-    
-    Reglas:
-    - Citas normales (duración 1 hora): Se completan después de 1 hora
-    - Citas veterinarias (duración >1 hora): Se completan después de su duración especificada
     """
     try:
         ahora = datetime.now()
-        
-        # Buscar todas las citas pendientes
         citas_pendientes = citas.find({"estado": "Pendiente"})
-        
         citas_actualizadas = 0
         
         for cita in citas_pendientes:
             try:
-                # Obtener la fecha de inicio de la cita
                 fecha_inicio = datetime.strptime(cita.get("fecha", ""), "%Y-%m-%dT%H:%M")
-                
-                # Obtener la duración (por defecto 1 hora)
                 duracion = cita.get("duracion", 1)
-                
-                # Calcular cuándo debería completarse
                 fecha_completado = fecha_inicio + timedelta(hours=duracion)
                 
-                # Si ya pasó el tiempo, marcar como completada
                 if ahora >= fecha_completado:
                     citas.update_one(
                         {"_id": cita["_id"]},
                         {"$set": {"estado": "Completada"}}
                     )
                     citas_actualizadas += 1
-                    
             except Exception as e:
-                # Si hay error con una cita específica, continuar con las demás
                 print(f"Error procesando cita {cita.get('_id')}: {e}")
                 continue
         
         if citas_actualizadas > 0:
             print(f"✅ {citas_actualizadas} citas actualizadas a 'Completada'")
-            
     except Exception as e:
         print(f"❌ Error al actualizar estados: {e}")
 
 
-# -------------------- LISTAR CITAS (CON CONTADORES CORRECTOS) --------------------
-
+# -------------------- LISTAR CITAS --------------------
 def list_citas(request):
     """Lista todas las citas según el rol."""
     if "user" not in request.session:
@@ -931,26 +994,29 @@ def list_citas(request):
 
     rol = request.session.get("rol")
     username = request.session.get("user")
-
     data = []
 
-    # Obtener citas según rol...
+    # Obtener current_user
+    current_user = users.find_one({"User": username})
+    if not current_user:
+        messages.error(request, "User not found.")
+        return redirect("index")
+    
+    current_user_id = str(current_user["_id"])
+
+    # Obtener citas según rol
     if rol == "Administrador":
         data = list(citas.find())
     elif rol == "Veterinario":
-        data = list(citas.find())
+        # ✅ Filtrar por veterinario (user_id)
+        data = list(citas.find({"id_veterinario": current_user_id}))
     else:
-        user = users.find_one({"User": username})
-        if not user:
-            messages.error(request, "User not found.")
-            return redirect("index")
-        user_id = str(user["_id"])
-        mascotas = list(pacientes.find({"id_user": user_id}))
+        # Cliente: Solo citas de sus mascotas
+        mascotas = list(pacientes.find({"id_user": current_user_id}))
         mascota_ids = [str(m["_id"]) for m in mascotas]
         data = list(citas.find({"id_paciente": {"$in": mascota_ids}}))
 
-    # 🔹 ORDENAR POR FECHA DESCENDENTE (MÁS RECIENTE PRIMERO)
-    # Esto se hace antes de procesar los datos
+    # Ordenar por fecha descendente
     data.sort(key=lambda x: x.get("fecha", "1970-01-01T00:00"), reverse=True)
 
     # Calcular contadores
@@ -960,18 +1026,9 @@ def list_citas(request):
     canceladas = len([c for c in data if c.get("estado") == "Cancelada"])
 
     # Enriquecer datos
-    current_user = users.find_one({"User": username})
-    current_user_id = str(current_user["_id"]) if current_user else None
-    
     for c in data:
-        if "_id" in c:
-            c["id"] = str(c["_id"])
-            c["id_str"] = str(c["_id"])
-        else:
-            c["id"] = None
-            c["id_str"] = None
-
-        # 🔹 GUARDAR FECHA ORIGINAL PARA EL FRONTEND
+        c["id"] = str(c.get("_id", ""))
+        c["id_str"] = str(c.get("_id", ""))
         c["fecha_original"] = c.get("fecha", "")
 
         # Buscar datos de la mascota
@@ -982,18 +1039,23 @@ def list_citas(request):
                 c["mascota_especie"] = mascota.get("especie", "Unknown")
                 c["mascota_owner_id"] = mascota.get("id_user")
 
-        # Buscar datos del veterinario
+        # ✅ Buscar veterinario en USERS
         if "id_veterinario" in c:
-            vet = veterinarios.find_one({"_id": ObjectId(c["id_veterinario"])})
+            vet = users.find_one({
+                "_id": ObjectId(c["id_veterinario"]),
+                "Rol": "Veterinario"
+            })
             if vet:
                 c["veterinario_nombre"] = vet.get("nombre", "Unknown Vet")
+            else:
+                c["veterinario_nombre"] = "Unknown Vet"
 
-        # Separar fecha y hora para mostrar bonito
+        # Separar fecha y hora
         try:
             fecha_cita = datetime.strptime(c.get("fecha", ""), "%Y-%m-%dT%H:%M")
             c["fecha"] = fecha_cita.strftime("%Y-%m-%d")
             c["hora"] = fecha_cita.strftime("%H:%M")
-        except Exception:
+        except:
             c["fecha"] = c.get("fecha", "")
             c["hora"] = ""
 
@@ -1005,15 +1067,12 @@ def list_citas(request):
             c["puede_editar"] = True
             c["puede_cancelar"] = True
         elif rol == "Cliente":
-            if c.get("mascota_owner_id") == current_user_id:
-                if c.get("estado") == "Pendiente":
-                    c["puede_editar"] = True
-                    c["puede_cancelar"] = True
+            if c.get("mascota_owner_id") == current_user_id and c.get("estado") == "Pendiente":
+                c["puede_editar"] = True
+                c["puede_cancelar"] = True
         elif rol == "Veterinario":
-            if c.get("id_veterinario") == current_user_id:
-                if c.get("estado") == "Pendiente":
-                    c["puede_editar"] = True
-                c["puede_cancelar"] = False
+            if c.get("id_veterinario") == current_user_id and c.get("estado") == "Pendiente":
+                c["puede_editar"] = True
 
     return render(request, "appointments_list.html", {
         "citas": data,
@@ -1025,12 +1084,10 @@ def list_citas(request):
         "canceladas": canceladas
     })
 
-# -------------------- CANCELAR CITA (NUEVO) --------------------
+
+# -------------------- CANCELAR CITA --------------------
 def cancel_cita(request, id):
-    """
-    Cancela una cita cambiando su estado a 'Cancelada'.
-    NO elimina la cita de la base de datos.
-    """
+    """Cancela una cita cambiando su estado a 'Cancelada'."""
     if "user" not in request.session:
         messages.warning(request, "Please log in first.")
         return redirect("login")
@@ -1040,7 +1097,6 @@ def cancel_cita(request, id):
         messages.error(request, "Appointment not found.")
         return redirect("list_citas")
 
-    # 🔹 VALIDAR PERMISOS
     username = request.session.get("user")
     rol = request.session.get("rol")
     current_user = users.find_one({"User": username})
@@ -1050,22 +1106,15 @@ def cancel_cita(request, id):
         return redirect("list_citas")
     
     current_user_id = str(current_user["_id"])
-    
-    # Verificar permisos según el rol
     tiene_permiso = False
     
     if rol == "Administrador":
-        # Admin puede cancelar cualquier cita
         tiene_permiso = True
-    
     elif rol == "Cliente":
-        # Cliente solo puede cancelar citas de sus mascotas
         mascota = pacientes.find_one({"_id": ObjectId(cita.get("id_paciente"))})
         if mascota and mascota.get("id_user") == current_user_id:
             tiene_permiso = True
-    
     elif rol == "Veterinario":
-        # Los veterinarios NO pueden cancelar citas
         messages.error(request, "Veterinarians cannot cancel appointments. Please contact the pet owner or an administrator.")
         return redirect("list_citas")
     
@@ -1073,12 +1122,10 @@ def cancel_cita(request, id):
         messages.error(request, "You don't have permission to cancel this appointment.")
         return redirect("list_citas")
 
-    # Verificar que la cita esté pendiente
     if cita.get("estado") != "Pendiente":
         messages.warning(request, f"Cannot cancel an appointment that is already {cita.get('estado')}.")
         return redirect("list_citas")
 
-    # 🔹 Cambiar estado a "Cancelada" (NO eliminar)
     citas.update_one(
         {"_id": ObjectId(id)},
         {"$set": {
@@ -1091,7 +1138,7 @@ def cancel_cita(request, id):
     return redirect("list_citas")
 
 
-# -------------------- AGENDAR CITA (SIN CAMBIOS MAYORES) --------------------
+# -------------------- AGENDAR CITA --------------------
 def add_cita(request):
     """Agrega una nueva cita con validaciones."""
     if "user" not in request.session:
@@ -1108,12 +1155,13 @@ def add_cita(request):
     
     user_id = str(user["_id"])
 
+    # Obtener mascotas
     mascotas = []
-    
     if rol == "Cliente":
         for m in pacientes.find({"id_user": user_id}):
             m["id"] = str(m["_id"])
             m["display_name"] = f"{m.get('nombre', 'Unknown')} ({m.get('especie', 'Unknown')})"
+            m["owner_name"] = "You"
             mascotas.append(m)
     else:
         for m in pacientes.find():
@@ -1121,13 +1169,20 @@ def add_cita(request):
             owner = users.find_one({"_id": ObjectId(m.get("id_user"))}) if m.get("id_user") else None
             owner_name = owner.get("User", "Unknown Owner") if owner else "Unknown Owner"
             m["display_name"] = f"{m.get('nombre', 'Unknown')} ({m.get('especie', 'Unknown')}) - Owner: {owner_name}"
+            m["owner_name"] = owner_name
             mascotas.append(m)
 
+    # ✅ Obtener veterinarios de USERS
     vets = []
-    for v in veterinarios.find():
+    for v in users.find({"Rol": "Veterinario"}):
         v["id"] = str(v["_id"])
         vets.append(v)
+    
+    if not vets:
+        messages.error(request, "No veterinarians available. Please contact the administrator.")
+        return redirect("list_citas")
 
+    # Procesar formulario
     if request.method == "POST":
         id_paciente = request.POST.get("paciente")
         id_veterinario = request.POST.get("veterinario")
@@ -1147,8 +1202,8 @@ def add_cita(request):
         fecha_cita = datetime.strptime(fecha, "%Y-%m-%dT%H:%M")
         hora = fecha_cita.time()
 
-        # Validaciones de horario
-        if hora < time(8, 0) or hora >= time(19, 0):
+        # ✅ FIX: Usar dt_time en lugar de time
+        if hora < dt_time(8, 0) or hora >= dt_time(19, 0):
             messages.error(request, "Appointments must be between 8:00 a.m. and 7:00 p.m.")
             return render(request, "appointments_form.html", {
                 "mascotas": mascotas,
@@ -1157,7 +1212,7 @@ def add_cita(request):
                 "rol": rol
             })
 
-        if time(12, 0) <= hora < time(14, 0):
+        if dt_time(12, 0) <= hora < dt_time(14, 0):
             messages.error(request, "Lunch time (12–2 p.m.) is unavailable.")
             return render(request, "appointments_form.html", {
                 "mascotas": mascotas,
@@ -1166,13 +1221,12 @@ def add_cita(request):
                 "rol": rol
             })
 
-        # Calcular fin de la cita
         fecha_fin = fecha_cita + timedelta(hours=duracion)
 
         # Verificar disponibilidad del veterinario
         citas_veterinario = list(citas.find({
             "id_veterinario": id_veterinario,
-            "estado": {"$ne": "Cancelada"}  # Ignorar citas canceladas
+            "estado": {"$ne": "Cancelada"}
         }))
         
         conflicto_encontrado = False
@@ -1188,8 +1242,7 @@ def add_cita(request):
                 if fecha_cita < fecha_fin_existente and fecha_fin > fecha_existente:
                     conflicto_encontrado = True
                     break
-                    
-            except Exception:
+            except:
                 continue
         
         if conflicto_encontrado:
@@ -1223,7 +1276,7 @@ def add_cita(request):
     })
 
 
-# -------------------- EDITAR CITA (SIN CAMBIOS) --------------------
+# -------------------- EDITAR CITA --------------------
 def edit_cita(request, id):
     """Edita una cita con validación de permisos."""
     if "user" not in request.session:
@@ -1247,71 +1300,56 @@ def edit_cita(request, id):
     
     # Verificar permisos
     tiene_permiso = False
-    
     if rol == "Administrador":
         tiene_permiso = True
     elif rol == "Cliente":
         mascota = pacientes.find_one({"_id": ObjectId(cita.get("id_paciente"))})
-        if mascota and mascota.get("id_user") == current_user_id:
-            if cita.get("estado") == "Pendiente":
-                tiene_permiso = True
+        if mascota and mascota.get("id_user") == current_user_id and cita.get("estado") == "Pendiente":
+            tiene_permiso = True
     elif rol == "Veterinario":
-        if cita.get("id_veterinario") == current_user_id:
-            if cita.get("estado") == "Pendiente":
-                tiene_permiso = True
+        if cita.get("id_veterinario") == current_user_id and cita.get("estado") == "Pendiente":
+            tiene_permiso = True
     
     if not tiene_permiso:
         messages.error(request, "You don't have permission to edit this appointment.")
         return redirect("list_citas")
     
-    # ============================================
-    # 🔧 SECCIÓN MODIFICADA - Obtener mascotas y vets
-    # ============================================
-    
+    # Obtener mascotas
+    mascotas = []
     if rol == "Cliente":
-        # 🔹 CLIENTE: Solo sus propias mascotas
-        mascotas = []
         for m in pacientes.find({"id_user": current_user_id}):
             m["id"] = str(m["_id"])
-            # 🔹 AGREGAR display_name para clientes
             m["display_name"] = f"{m.get('nombre', 'Unknown')} ({m.get('especie', 'Unknown')})"
+            m["owner_name"] = "You"
             mascotas.append(m)
         
-        # 🔹 VERIFICAR si tiene mascotas
         if not mascotas:
             messages.warning(request, "You don't have any registered pets. Please add a pet first.")
-            return redirect("add_mascota")
-    
+            return redirect("add_paciente")
     else:
-        # 🔹 ADMIN/VET: Todas las mascotas
-        mascotas = []
         for m in pacientes.find():
             m["id"] = str(m["_id"])
             owner = users.find_one({"_id": ObjectId(m.get("id_user"))}) if m.get("id_user") else None
             owner_name = owner.get("User", "Unknown") if owner else "Unknown"
             m["display_name"] = f"{m.get('nombre', 'Unknown')} ({m.get('especie', 'Unknown')}) - Owner: {owner_name}"
+            m["owner_name"] = owner_name
             mascotas.append(m)
     
-    # Obtener veterinarios
+    # ✅ Obtener veterinarios de USERS
     vets = []
-    for v in veterinarios.find():
+    for v in users.find({"Rol": "Veterinario"}):
         v["id"] = str(v["_id"])
         vets.append(v)
     
-    # ============================================
-    # 🔧 SECCIÓN MODIFICADA - Procesar formulario (POST)
-    # ============================================
-    
+    # Procesar formulario
     if request.method == "POST":
         id_paciente = request.POST.get("paciente")
         id_veterinario = request.POST.get("veterinario")
         fecha_str = request.POST.get("fecha")
         motivo = request.POST.get("motivo", "").strip()
         
-        # Validaciones
         if not all([id_paciente, id_veterinario, fecha_str, motivo]):
             messages.error(request, "Please fill all required fields.")
-            # Re-renderizar con los datos actuales
             cita["id_str"] = str(cita["_id"])
             return render(request, "appointments_form.html", {
                 "cita": cita,
@@ -1339,7 +1377,6 @@ def edit_cita(request, id):
         
         # Validar formato de fecha
         try:
-            from datetime import datetime, timedelta
             fecha_obj = datetime.strptime(fecha_str, "%Y-%m-%dT%H:%M")
         except ValueError:
             messages.error(request, "Invalid date format.")
@@ -1369,7 +1406,6 @@ def edit_cita(request, id):
                 "username": username
             })
         
-        # No puede ser fin de semana
         if fecha_obj.weekday() >= 5:
             messages.error(request, "Appointments are only available Monday through Friday.")
             cita["id_str"] = str(cita["_id"])
@@ -1420,12 +1456,8 @@ def edit_cita(request, id):
         messages.success(request, "Appointment updated successfully.")
         return redirect("list_citas")
 
-    # ============================================
     # Preparar datos de la cita para el formulario
-    # ============================================
-    
     cita["id_str"] = str(cita["_id"])
-    # 🔹 Convertir los ObjectId a strings para el template
     cita["id_paciente"] = str(cita.get("id_paciente", ""))
     cita["id_veterinario"] = str(cita.get("id_veterinario", ""))
 
@@ -1437,6 +1469,7 @@ def edit_cita(request, id):
         "rol": rol,
         "username": username
     })
+
 
 
 
@@ -1639,7 +1672,7 @@ def reports(request):
         return redirect("index")
     
     # Obtener parámetros de filtro
-    report_type = request.GET.get("type", "appointments")  # appointments, pets, users, veterinarians
+    report_type = request.GET.get("type", "appointments")
     start_date = request.GET.get("start_date", "")
     end_date = request.GET.get("end_date", "")
     status = request.GET.get("status", "")
@@ -1694,8 +1727,11 @@ def reports(request):
             else:
                 c["owner_name"] = "Unknown"
             
-            # Veterinario
-            vet = veterinarios.find_one({"_id": ObjectId(c.get("id_veterinario"))}) if c.get("id_veterinario") else None
+            # ✅ CAMBIO: Veterinario desde USERS
+            vet = users.find_one({
+                "_id": ObjectId(c.get("id_veterinario")),
+                "Rol": "Veterinario"
+            }) if c.get("id_veterinario") else None
             c["veterinario_nombre"] = vet.get("nombre", "Unknown") if vet else "Unknown"
             c["veterinario_especialidad"] = vet.get("especialidad", "N/A") if vet else "N/A"
             
@@ -1753,7 +1789,8 @@ def reports(request):
     
     # ========== REPORTE DE VETERINARIOS ==========
     elif report_type == "veterinarians":
-        vets_data = list(veterinarios.find())
+        # ✅ CAMBIO: Obtener veterinarios de USERS
+        vets_data = list(users.find({"Rol": "Veterinario"}))
         
         # Enriquecer con estadísticas
         for v in vets_data:
@@ -1801,6 +1838,10 @@ def reports(request):
                 # Citas de sus mascotas
                 mascotas_ids = [str(m["_id"]) for m in pacientes.find({"id_user": str(u["_id"])})]
                 u["total_citas"] = citas.count_documents({"id_paciente": {"$in": mascotas_ids}})
+            # ✅ CAMBIO: Si es veterinario, contar sus citas
+            elif u.get("Rol") == "Veterinario":
+                u["total_mascotas"] = 0
+                u["total_citas"] = citas.count_documents({"id_veterinario": str(u["_id"])})
             else:
                 u["total_mascotas"] = 0
                 u["total_citas"] = 0
@@ -1819,9 +1860,9 @@ def reports(request):
             "total_admins": total_admins,
         })
     
-    # Obtener lista de veterinarios para el filtro
+    # ✅ CAMBIO: Obtener lista de veterinarios de USERS para el filtro
     all_vets = []
-    for v in veterinarios.find():
+    for v in users.find({"Rol": "Veterinario"}):
         all_vets.append({
             "id": str(v["_id"]),
             "nombre": v.get("nombre", "Unknown"),

@@ -60,7 +60,6 @@
         </div>
 
         <div class="flex flex-col md:flex-row items-center gap-6">
-          <!-- Preview -->
           <div class="flex-shrink-0">
             <div class="relative">
               <div id="profilePicturePreview" class="w-32 h-32 rounded-full overflow-hidden border-4 border-dark-600 shadow-xl">
@@ -82,7 +81,6 @@
             </div>
           </div>
 
-          <!-- Upload Controls -->
           <div class="flex-1 w-full">
             <input type="file" 
                    id="profile_picture" 
@@ -117,7 +115,6 @@
               <div class="text-xs text-gray-500 space-y-1">
                 <p><i class="fas fa-info-circle mr-1 text-blue-400"></i>Maximum file size: 5MB</p>
                 <p><i class="fas fa-check-circle mr-1 text-green-400"></i>Accepted: JPG, PNG, GIF</p>
-                <p><i class="fas fa-star mr-1 text-yellow-400"></i>Square image recommended</p>
               </div>
 
               {% if vet.profile_picture %}
@@ -137,18 +134,85 @@
         </div>
       </div>
 
+      <!-- Account Information (NEW) -->
+      <div class="bg-dark-800 border border-dark-700 rounded-xl p-8 shadow-xl">
+        <h3 class="text-lg font-bold text-white mb-4 flex items-center border-b border-dark-600 pb-2">
+          <i class="fas fa-user-circle text-blue-500 mr-2"></i>
+          Account Information
+        </h3>
+        
+        <div class="space-y-4">
+          <!-- Username -->
+          <div class="group">
+            <label class="block text-gray-300 mb-2 font-medium">
+              <i class="fas fa-user text-blue-500 mr-2"></i>
+              Username *
+            </label>
+            <input type="text" 
+                   name="username" 
+                   value="{{ vet.User|default:'' }}" 
+                   required
+                   {% if action == 'Edit' %}readonly{% endif %}
+                   placeholder="e.g., dr_smith"
+                   class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                          focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent
+                          transition-all duration-300 {% if action == 'Edit' %}cursor-not-allowed opacity-75{% else %}group-hover:border-blue-700{% endif %}">
+            <p class="text-xs text-gray-500 mt-1 flex items-center">
+              <i class="fas fa-info-circle mr-1"></i>
+              {% if action == 'Add' %}For login access{% else %}Username cannot be changed{% endif %}
+            </p>
+          </div>
+
+          <!-- Email -->
+          <div class="group">
+            <label class="block text-gray-300 mb-2 font-medium">
+              <i class="fas fa-envelope text-blue-500 mr-2"></i>
+              Email Address *
+            </label>
+            <input type="email" 
+                   name="email"
+                   value="{{ vet.Email|default:'' }}"
+                   required
+                   placeholder="dr.smith@petcare.com"
+                   class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                          focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent
+                          transition-all duration-300 group-hover:border-blue-700">
+          </div>
+
+          <!-- Password -->
+          <div class="group">
+            <label class="block text-gray-300 mb-2 font-medium">
+              <i class="fas fa-key text-blue-500 mr-2"></i>
+              Password {% if action == 'Add' %}*{% endif %}
+            </label>
+            <input type="password" 
+                   name="password"
+                   {% if action == 'Add' %}required{% endif %}
+                   placeholder="{% if action == 'Add' %}Minimum 6 characters{% else %}Leave blank to keep current{% endif %}"
+                   minlength="6"
+                   class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                          focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent
+                          transition-all duration-300 group-hover:border-blue-700">
+            <p class="text-xs text-gray-500 mt-1 flex items-center">
+              <i class="fas fa-shield-alt mr-1"></i>
+              {% if action == 'Add' %}Will be used for login{% else %}Leave empty to keep current password{% endif %}
+            </p>
+          </div>
+        </div>
+      </div>
+
       <!-- Basic Information -->
       <div class="bg-dark-800 border border-dark-700 rounded-xl p-8 shadow-xl">
         <h3 class="text-lg font-bold text-white mb-4 flex items-center border-b border-dark-600 pb-2">
           <i class="fas fa-user-md text-olive-500 mr-2"></i>
-          Basic Information
+          Professional Information
         </h3>
         
         <div class="space-y-4">
           <!-- Nombre -->
           <div class="group">
             <label class="block text-gray-300 mb-2 font-medium">
-              <i class="fas fa-user text-olive-500 mr-2"></i>
+              <i class="fas fa-id-badge text-olive-500 mr-2"></i>
               Full Name *
             </label>
             <input type="text" 
@@ -192,33 +256,6 @@
               <option value="Other" {% if vet.especialidad == 'Other' %}selected{% endif %}>⭐ Other</option>
             </select>
           </div>
-        </div>
-      </div>
-
-      <!-- Contact Information -->
-      <div class="bg-dark-800 border border-dark-700 rounded-xl p-8 shadow-xl">
-        <h3 class="text-lg font-bold text-white mb-4 flex items-center border-b border-dark-600 pb-2">
-          <i class="fas fa-address-card text-olive-500 mr-2"></i>
-          Contact Information
-          <span class="ml-2 text-xs text-gray-500 font-normal">(Recommended)</span>
-        </h3>
-        
-        <div class="grid md:grid-cols-2 gap-4">
-          <!-- Email -->
-          <div class="group">
-            <label class="block text-gray-300 mb-2 font-medium">
-              <i class="fas fa-envelope text-olive-500 mr-2"></i>
-              Email Address
-            </label>
-            <input type="email" 
-                   name="email"
-                   value="{{ vet.email|default:'' }}"
-                   placeholder="dr.smith@petcare.com"
-                   class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
-                          focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
-                          transition-all duration-300 group-hover:border-olive-700"
-                   oninput="updatePreview()">
-          </div>
 
           <!-- Phone -->
           <div class="group">
@@ -234,31 +271,23 @@
                           focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
                           transition-all duration-300 group-hover:border-olive-700">
           </div>
-        </div>
-      </div>
 
-      <!-- Professional Information -->
-      <div class="bg-dark-800 border border-dark-700 rounded-xl p-8 shadow-xl">
-        <h3 class="text-lg font-bold text-white mb-4 flex items-center border-b border-dark-600 pb-2">
-          <i class="fas fa-certificate text-olive-500 mr-2"></i>
-          Professional Credentials
-          <span class="ml-2 text-xs text-gray-500 font-normal">(Optional)</span>
-        </h3>
-        
-        <div class="group">
-          <label class="block text-gray-300 mb-2 font-medium">
-            <i class="fas fa-id-card text-olive-500 mr-2"></i>
-            License Number
-          </label>
-          <input type="text" 
-                 name="license"
-                 value="{{ vet.license|default:'' }}"
-                 placeholder="VET-12345"
-                 maxlength="50"
-                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
-                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
-                        transition-all duration-300 group-hover:border-olive-700"
-                 oninput="updatePreview()">
+          <!-- License -->
+          <div class="group">
+            <label class="block text-gray-300 mb-2 font-medium">
+              <i class="fas fa-certificate text-olive-500 mr-2"></i>
+              License Number
+            </label>
+            <input type="text" 
+                   name="license"
+                   value="{{ vet.license|default:'' }}"
+                   placeholder="VET-12345"
+                   maxlength="50"
+                   class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                          focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                          transition-all duration-300 group-hover:border-olive-700"
+                   oninput="updatePreview()">
+          </div>
         </div>
       </div>
 
@@ -292,10 +321,9 @@
         </h3>
         
         <div class="bg-dark-900 border border-dark-600 rounded-lg p-4 text-center">
-          <!-- Avatar Preview -->
           <div id="previewAvatar" class="w-20 h-20 mx-auto mb-3 rounded-full overflow-hidden border-2 border-purple-600">
             {% if vet.profile_picture %}
-              <img src="{{ vet.profile_picture }}" class="w-full h-full object-cover" id="previewAvatarImg">
+              <img src="{{ vet.profile_picture }}" class="w-full h-full object-cover">
             {% else %}
               <div class="w-full h-full bg-gradient-to-br from-purple-700 to-purple-600 flex items-center justify-center">
                 <span class="text-white text-2xl font-bold" id="previewInitials">VT</span>
@@ -307,10 +335,6 @@
           <p class="text-olive-400 text-sm mb-3" id="previewSpecialty">Specialty</p>
           
           <div class="space-y-2 text-xs border-t border-dark-600 pt-3">
-            <div class="flex items-center justify-center text-gray-400" id="previewEmailContainer" style="display: none;">
-              <i class="fas fa-envelope text-olive-500 mr-2"></i>
-              <span id="previewEmail" class="truncate"></span>
-            </div>
             <div class="flex items-center justify-center text-gray-400" id="previewLicenseContainer" style="display: none;">
               <i class="fas fa-id-card text-olive-500 mr-2"></i>
               <span id="previewLicense"></span>
@@ -334,15 +358,15 @@
         <div class="space-y-3 text-sm">
           <div class="flex items-start space-x-2 text-gray-300">
             <i class="fas fa-check-circle text-olive-500 mt-0.5"></i>
-            <p>Upload a clear, professional photo</p>
+            <p>Username will be used for login</p>
           </div>
           <div class="flex items-start space-x-2 text-gray-300">
             <i class="fas fa-check-circle text-olive-500 mt-0.5"></i>
-            <p>Square images work best (1:1 ratio)</p>
+            <p>Password must be at least 6 characters</p>
           </div>
           <div class="flex items-start space-x-2 text-gray-300">
             <i class="fas fa-check-circle text-olive-500 mt-0.5"></i>
-            <p>Email enables notifications</p>
+            <p>Upload a professional photo</p>
           </div>
           <div class="flex items-start space-x-2 text-gray-300">
             <i class="fas fa-check-circle text-olive-500 mt-0.5"></i>
@@ -356,7 +380,6 @@
 </div>
 
 <script>
-  // Preview de imagen
   function previewImage(event) {
     const file = event.target.files[0];
     const preview = document.getElementById('profilePicturePreview');
@@ -398,26 +421,15 @@
   function updatePreview() {
     const nombre = document.querySelector('input[name="nombre"]').value;
     const especialidad = document.querySelector('select[name="especialidad"]').value;
-    const email = document.querySelector('input[name="email"]').value;
     const license = document.querySelector('input[name="license"]').value;
     
     document.getElementById('previewName').textContent = nombre ? 'Dr. ' + nombre : 'Dr. Name';
     document.getElementById('previewSpecialty').textContent = especialidad || 'Specialty';
     
-    // Actualizar iniciales
     const initials = nombre ? nombre.slice(0, 2).toUpperCase() : 'VT';
     const initialsElement = document.getElementById('previewInitials');
     if (initialsElement) {
       initialsElement.textContent = initials;
-    }
-    
-    const emailContainer = document.getElementById('previewEmailContainer');
-    const emailSpan = document.getElementById('previewEmail');
-    if (email) {
-      emailSpan.textContent = email;
-      emailContainer.style.display = 'flex';
-    } else {
-      emailContainer.style.display = 'none';
     }
     
     const licenseContainer = document.getElementById('previewLicenseContainer');
@@ -433,7 +445,6 @@
   document.addEventListener('DOMContentLoaded', function() {
     document.querySelector('input[name="nombre"]').addEventListener('input', updatePreview);
     document.querySelector('select[name="especialidad"]').addEventListener('change', updatePreview);
-    document.querySelector('input[name="email"]').addEventListener('input', updatePreview);
     document.querySelector('input[name="license"]').addEventListener('input', updatePreview);
     
     updatePreview();
