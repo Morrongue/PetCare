@@ -5,6 +5,12 @@ from .models import users, pacientes, veterinarios, citas
 from collections import Counter
 from bson import ObjectId
 from datetime import datetime, time, timedelta
+import os
+import time 
+import base64
+
+
+
 
 # ---- Dashboard principal ----
 def index(request):
@@ -277,10 +283,11 @@ def logout(request):
 
 # ------------------ CRUD de Pacientes ------------------
 
+
 def list_pacientes(request):
     """Lista los pacientes del usuario o todos si es admin."""
     if "user" not in request.session:
-        messages.warning(request, "Debes iniciar sesión para ver tus pacientes.")
+        messages.warning(request, "Please log in first.")
         return redirect("login")
 
     rol = request.session.get("rol")
@@ -292,71 +299,250 @@ def list_pacientes(request):
         user = users.find_one({"User": username})
         data = list(pacientes.find({"id_user": str(user["_id"])}))
 
-    # Convertir ObjectId a str y renombrar el campo
+    # Convertir ObjectId a str
     for p in data:
         p["id"] = str(p["_id"])
-        del p["_id"]
 
-    return render(request, "patients_list.html", {"patients": data, "rol": rol, "username": username})
+    return render(request, "patients_list.html", {
+        "patients": data,
+        "rol": rol,
+        "username": username
+    })
 
 
 def add_paciente(request):
-    """Agrega un nuevo paciente."""
+    """Agrega un nuevo paciente con foto de perfil."""
     if "user" not in request.session:
-        messages.warning(request, "Inicia sesión primero.")
+        messages.warning(request, "Please log in first.")
         return redirect("login")
 
     if request.method == "POST":
-        nombre = request.POST["nombre"]
-        especie = request.POST["especie"]
-        raza = request.POST["raza"]
+        nombre = request.POST.get("nombre", "").strip()
+        especie = request.POST.get("especie", "").strip()
+        raza = request.POST.get("raza", "").strip()
+        
+        # Validar campos requeridos
+        if not nombre or not especie or not raza:
+            messages.error(request, "Name, species, and breed are required.")
+            return redirect("add_paciente")
+        
         user = users.find_one({"User": request.session["user"]})
-
-        pacientes.insert_one({
+        
+        # Preparar datos del paciente
+        paciente_data = {
             "nombre": nombre,
             "especie": especie,
             "raza": raza,
-            "id_user": str(user["_id"])
-        })
+            "id_user": str(user["_id"]),
+            "profile_picture": None
+        }
 
-        messages.success(request, "Paciente agregado exitosamente.")
+        # ===================================================
+        # MANEJO DE FOTO DE PERFIL - BASE64
+        # ===================================================
+        
+        if 'profile_picture' in request.FILES:
+            profile_picture = request.FILES['profile_picture']
+            
+            # Validar que tenga contenido
+            if profile_picture.size == 0:
+                messages.error(request, "The uploaded file is empty.")
+                return redirect("add_paciente")
+            
+            # Validar tipo de archivo
+            allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+            if profile_picture.content_type not in allowed_types:
+                messages.error(request, "Invalid file type. Only JPG, PNG, GIF, and WEBP are allowed.")
+                return redirect("add_paciente")
+            
+            # Validar tamaño (5MB máximo)
+            if profile_picture.size > 5 * 1024 * 1024:
+                messages.error(request, "File size must be less than 5MB.")
+                return redirect("add_paciente")
+            
+            try:
+                # Leer archivo y convertir a Base64
+                file_content = profile_picture.read()
+                base64_image = base64.b64encode(file_content).decode('utf-8')
+                
+                # Crear Data URI
+                data_uri = f"data:{profile_picture.content_type};base64,{base64_image}"
+                
+                # Agregar a los datos
+                paciente_data["profile_picture"] = data_uri
+                
+                print(f"✅ Foto guardada para {nombre}: {len(base64_image)} caracteres")
+                
+            except Exception as e:
+                print(f"❌ Error procesando imagen: {str(e)}")
+                messages.error(request, f"Error processing image: {str(e)}")
+                return redirect("add_paciente")
+
+        # Insertar paciente
+        result = pacientes.insert_one(paciente_data)
+        print(f"✅ Paciente insertado con ID: {result.inserted_id}")
+        
+        messages.success(request, f"{nombre} added successfully to your pets.")
         return redirect("list_pacientes")
 
-    return render(request, "patients_form.html", {"action": "Add"})
+    # GET request
+    return render(request, "patients_form.html", {
+        "action": "Add",
+        "paciente": {},
+        "rol": request.session.get("rol"),
+        "username": request.session.get("user")
+    })
 
 
 def edit_paciente(request, id):
-    """Edita los datos de un paciente."""
+    """Edita los datos de un paciente con foto de perfil."""
+    if "user" not in request.session:
+        messages.warning(request, "Please log in first.")
+        return redirect("login")
+    
     paciente = pacientes.find_one({"_id": ObjectId(id)})
 
     if not paciente:
-        messages.error(request, "Paciente no encontrado.")
+        messages.error(request, "Pet not found.")
         return redirect("list_pacientes")
 
     if request.method == "POST":
-        nombre = request.POST["nombre"]
-        especie = request.POST["especie"]
-        raza = request.POST["raza"]
-
-        pacientes.update_one({"_id": ObjectId(id)}, {"$set": {
+        nombre = request.POST.get("nombre", "").strip()
+        especie = request.POST.get("especie", "").strip()
+        raza = request.POST.get("raza", "").strip()
+        remove_profile_picture = request.POST.get("remove_profile_picture", "") == "true"
+        
+        # Validar campos requeridos
+        if not nombre or not especie or not raza:
+            messages.error(request, "Name, species, and breed are required.")
+            return render(request, "patients_form.html", {
+                "action": "Edit",
+                "paciente": paciente,
+                "rol": request.session.get("rol"),
+                "username": request.session.get("user")
+            })
+        
+        # Preparar datos de actualización
+        update_data = {
             "nombre": nombre,
             "especie": especie,
             "raza": raza
-        }})
+        }
 
-        messages.success(request, "Paciente actualizado correctamente.")
+        # ===================================================
+        # MANEJO DE FOTO DE PERFIL
+        # ===================================================
+        
+        # Opción 1: Eliminar foto actual
+        if remove_profile_picture:
+            update_data["profile_picture"] = None
+            print(f"🗑️ Eliminando foto de {nombre}")
+        
+        # Opción 2: Subir nueva foto
+        if 'profile_picture' in request.FILES and not remove_profile_picture:
+            profile_picture = request.FILES['profile_picture']
+            
+            # Validar que tenga contenido
+            if profile_picture.size == 0:
+                messages.error(request, "The uploaded file is empty.")
+                return render(request, "patients_form.html", {
+                    "action": "Edit",
+                    "paciente": paciente,
+                    "rol": request.session.get("rol"),
+                    "username": request.session.get("user")
+                })
+            
+            # Validar tipo de archivo
+            allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+            if profile_picture.content_type not in allowed_types:
+                messages.error(request, "Invalid file type. Only JPG, PNG, GIF, and WEBP are allowed.")
+                return render(request, "patients_form.html", {
+                    "action": "Edit",
+                    "paciente": paciente,
+                    "rol": request.session.get("rol"),
+                    "username": request.session.get("user")
+                })
+            
+            # Validar tamaño (5MB máximo)
+            if profile_picture.size > 5 * 1024 * 1024:
+                messages.error(request, "File size must be less than 5MB.")
+                return render(request, "patients_form.html", {
+                    "action": "Edit",
+                    "paciente": paciente,
+                    "rol": request.session.get("rol"),
+                    "username": request.session.get("user")
+                })
+            
+            try:
+                # Leer archivo y convertir a Base64
+                file_content = profile_picture.read()
+                base64_image = base64.b64encode(file_content).decode('utf-8')
+                
+                # Crear Data URI
+                data_uri = f"data:{profile_picture.content_type};base64,{base64_image}"
+                
+                # Agregar a los datos de actualización
+                update_data["profile_picture"] = data_uri
+                
+                print(f"✅ Nueva foto para {nombre}: {len(base64_image)} caracteres")
+                
+            except Exception as e:
+                print(f"❌ Error procesando imagen: {str(e)}")
+                messages.error(request, f"Error processing image: {str(e)}")
+                return render(request, "patients_form.html", {
+                    "action": "Edit",
+                    "paciente": paciente,
+                    "rol": request.session.get("rol"),
+                    "username": request.session.get("user")
+                })
+
+        # Actualizar paciente
+        pacientes.update_one({"_id": ObjectId(id)}, {"$set": update_data})
+        print(f"✅ Paciente {nombre} actualizado")
+        
+        messages.success(request, f"{nombre}'s information updated successfully.")
         return redirect("list_pacientes")
 
-    return render(request, "patients_form.html", {"action": "Edit", "paciente": paciente})
+    # GET request
+    return render(request, "patients_form.html", {
+        "action": "Edit",
+        "paciente": paciente,
+        "rol": request.session.get("rol"),
+        "username": request.session.get("user")
+    })
 
 
 def delete_paciente(request, id):
     """Elimina un paciente."""
+    if "user" not in request.session:
+        messages.warning(request, "Please log in first.")
+        return redirect("login")
+    
+    paciente = pacientes.find_one({"_id": ObjectId(id)})
+    
+    if not paciente:
+        messages.error(request, "Pet not found.")
+        return redirect("list_pacientes")
+    
+    # Opcional: Verificar si tiene citas pendientes
+    # from .conexion import citas
+    # citas_pendientes = citas.count_documents({
+    #     "paciente_id": str(id),
+    #     "estado": "Pendiente"
+    # })
+    # if citas_pendientes > 0:
+    #     messages.error(request, f"Cannot delete {paciente['nombre']}. There are {citas_pendientes} pending appointments.")
+    #     return redirect("list_pacientes")
+    
     pacientes.delete_one({"_id": ObjectId(id)})
-    messages.info(request, "Paciente eliminado.")
+    print(f"🗑️ Paciente {paciente['nombre']} eliminado")
+    
+    messages.info(request, f"{paciente['nombre']} has been removed from your pets.")
     return redirect("list_pacientes")
 
+
 # ------------------ CRUD de Veterinarios ------------------
+
 
 def list_veterinarios(request):
     """Lista todos los veterinarios (solo admin)."""
@@ -384,50 +570,111 @@ def list_veterinarios(request):
 
 
 def add_veterinario(request):
-    """Agrega un nuevo veterinario con información completa."""
+    """Agrega un nuevo veterinario con información completa y foto de perfil."""
+    if "user" not in request.session:
+        messages.warning(request, "Please log in first.")
+        return redirect("login")
+    
     if request.session.get("rol") != "Administrador":
         messages.error(request, "Only administrators can add veterinarians.")
         return redirect("index")
 
     if request.method == "POST":
-        nombre = request.POST.get("nombre")
-        especialidad = request.POST.get("especialidad")
-        email = request.POST.get("email", "")  # Campo nuevo - opcional
-        phone = request.POST.get("phone", "")  # Campo nuevo - opcional
-        license = request.POST.get("license", "")  # Campo nuevo - opcional
+        nombre = request.POST.get("nombre", "").strip()
+        especialidad = request.POST.get("especialidad", "").strip()
+        email = request.POST.get("email", "").strip()
+        phone = request.POST.get("phone", "").strip()
+        license = request.POST.get("license", "").strip()
 
-        # Validar que el nombre no esté vacío
+        # Validar campos requeridos
         if not nombre or not especialidad:
             messages.error(request, "Name and specialty are required.")
             return redirect("add_veterinario")
 
-        # Validar que el email no esté en uso (si se proporciona)
+        # Validar email único
         if email and veterinarios.find_one({"email": email}):
             messages.error(request, "A veterinarian with this email already exists.")
             return redirect("add_veterinario")
 
-        # Validar que la licencia no esté en uso (si se proporciona)
+        # Validar licencia única
         if license and veterinarios.find_one({"license": license}):
             messages.error(request, "A veterinarian with this license number already exists.")
             return redirect("add_veterinario")
 
-        # Insertar nuevo veterinario con todos los campos
-        veterinarios.insert_one({
+        # Preparar datos del veterinario
+        vet_data = {
             "nombre": nombre,
             "especialidad": especialidad,
             "email": email,
             "phone": phone,
-            "license": license
-        })
+            "license": license,
+            "profile_picture": None  # Inicializar como None
+        }
+
+        # ===================================================
+        # MANEJO DE FOTO DE PERFIL - BASE64
+        # ===================================================
+        
+        if 'profile_picture' in request.FILES:
+            profile_picture = request.FILES['profile_picture']
+            
+            # Validar que tenga contenido
+            if profile_picture.size == 0:
+                messages.error(request, "The uploaded file is empty.")
+                return redirect("add_veterinario")
+            
+            # Validar tipo de archivo
+            allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+            if profile_picture.content_type not in allowed_types:
+                messages.error(request, "Invalid file type. Only JPG, PNG, GIF, and WEBP are allowed.")
+                return redirect("add_veterinario")
+            
+            # Validar tamaño (5MB máximo)
+            if profile_picture.size > 5 * 1024 * 1024:
+                messages.error(request, "File size must be less than 5MB.")
+                return redirect("add_veterinario")
+            
+            try:
+                # Leer archivo y convertir a Base64
+                file_content = profile_picture.read()
+                base64_image = base64.b64encode(file_content).decode('utf-8')
+                
+                # Crear Data URI
+                data_uri = f"data:{profile_picture.content_type};base64,{base64_image}"
+                
+                # Agregar a los datos
+                vet_data["profile_picture"] = data_uri
+                
+                print(f"✅ Foto guardada para {nombre}: {len(base64_image)} caracteres")
+                
+            except Exception as e:
+                print(f"❌ Error procesando imagen: {str(e)}")
+                messages.error(request, f"Error processing image: {str(e)}")
+                return redirect("add_veterinario")
+
+        # Insertar veterinario
+        result = veterinarios.insert_one(vet_data)
+        print(f"✅ Veterinario insertado con ID: {result.inserted_id}")
         
         messages.success(request, f"Dr. {nombre} added successfully.")
         return redirect("list_veterinarios")
 
-    return render(request, "vets_form.html", {"action": "Add", "vet": {}})
+    # GET request
+    context = {
+        "action": "Add",
+        "vet": {},
+        "rol": request.session.get("rol"),
+        "username": request.session.get("user")
+    }
+    return render(request, "vets_form.html", context)
 
 
 def edit_veterinario(request, id):
-    """Edita un veterinario existente con información completa."""
+    """Edita un veterinario existente con información completa y foto de perfil."""
+    if "user" not in request.session:
+        messages.warning(request, "Please log in first.")
+        return redirect("login")
+    
     if request.session.get("rol") != "Administrador":
         messages.error(request, "Only administrators can edit veterinarians.")
         return redirect("index")
@@ -438,18 +685,25 @@ def edit_veterinario(request, id):
         return redirect("list_veterinarios")
 
     if request.method == "POST":
-        nombre = request.POST.get("nombre")
-        especialidad = request.POST.get("especialidad")
-        email = request.POST.get("email", "")  # Campo nuevo
-        phone = request.POST.get("phone", "")  # Campo nuevo
-        license = request.POST.get("license", "")  # Campo nuevo
+        nombre = request.POST.get("nombre", "").strip()
+        especialidad = request.POST.get("especialidad", "").strip()
+        email = request.POST.get("email", "").strip()
+        phone = request.POST.get("phone", "").strip()
+        license = request.POST.get("license", "").strip()
+        remove_profile_picture = request.POST.get("remove_profile_picture", "") == "true"
 
-        # Validar que el nombre no esté vacío
+        # Validar campos requeridos
         if not nombre or not especialidad:
             messages.error(request, "Name and specialty are required.")
-            return render(request, "vets_form.html", {"action": "Edit", "vet": vet})
+            context = {
+                "action": "Edit",
+                "vet": vet,
+                "rol": request.session.get("rol"),
+                "username": request.session.get("user")
+            }
+            return render(request, "vets_form.html", context)
 
-        # Validar que el email no esté en uso por otro veterinario
+        # Validar email único (excepto el actual)
         if email:
             existing_email = veterinarios.find_one({
                 "email": email,
@@ -457,9 +711,15 @@ def edit_veterinario(request, id):
             })
             if existing_email:
                 messages.error(request, "Another veterinarian already has this email.")
-                return render(request, "vets_form.html", {"action": "Edit", "vet": vet})
+                context = {
+                    "action": "Edit",
+                    "vet": vet,
+                    "rol": request.session.get("rol"),
+                    "username": request.session.get("user")
+                }
+                return render(request, "vets_form.html", context)
 
-        # Validar que la licencia no esté en uso por otro veterinario
+        # Validar licencia única (excepto la actual)
         if license:
             existing_license = veterinarios.find_one({
                 "license": license,
@@ -467,25 +727,117 @@ def edit_veterinario(request, id):
             })
             if existing_license:
                 messages.error(request, "Another veterinarian already has this license number.")
-                return render(request, "vets_form.html", {"action": "Edit", "vet": vet})
+                context = {
+                    "action": "Edit",
+                    "vet": vet,
+                    "rol": request.session.get("rol"),
+                    "username": request.session.get("user")
+                }
+                return render(request, "vets_form.html", context)
 
-        # Actualizar veterinario
-        veterinarios.update_one({"_id": ObjectId(id)}, {"$set": {
+        # Preparar datos de actualización
+        update_data = {
             "nombre": nombre,
             "especialidad": especialidad,
             "email": email,
             "phone": phone,
             "license": license
-        }})
+        }
+
+        # ===================================================
+        # MANEJO DE FOTO DE PERFIL
+        # ===================================================
+        
+        # Opción 1: Eliminar foto actual
+        if remove_profile_picture:
+            update_data["profile_picture"] = None
+            print(f"🗑️ Eliminando foto de {nombre}")
+        
+        # Opción 2: Subir nueva foto
+        if 'profile_picture' in request.FILES and not remove_profile_picture:
+            profile_picture = request.FILES['profile_picture']
+            
+            # Validar que tenga contenido
+            if profile_picture.size == 0:
+                messages.error(request, "The uploaded file is empty.")
+                context = {
+                    "action": "Edit",
+                    "vet": vet,
+                    "rol": request.session.get("rol"),
+                    "username": request.session.get("user")
+                }
+                return render(request, "vets_form.html", context)
+            
+            # Validar tipo de archivo
+            allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+            if profile_picture.content_type not in allowed_types:
+                messages.error(request, "Invalid file type. Only JPG, PNG, GIF, and WEBP are allowed.")
+                context = {
+                    "action": "Edit",
+                    "vet": vet,
+                    "rol": request.session.get("rol"),
+                    "username": request.session.get("user")
+                }
+                return render(request, "vets_form.html", context)
+            
+            # Validar tamaño (5MB máximo)
+            if profile_picture.size > 5 * 1024 * 1024:
+                messages.error(request, "File size must be less than 5MB.")
+                context = {
+                    "action": "Edit",
+                    "vet": vet,
+                    "rol": request.session.get("rol"),
+                    "username": request.session.get("user")
+                }
+                return render(request, "vets_form.html", context)
+            
+            try:
+                # Leer archivo y convertir a Base64
+                file_content = profile_picture.read()
+                base64_image = base64.b64encode(file_content).decode('utf-8')
+                
+                # Crear Data URI
+                data_uri = f"data:{profile_picture.content_type};base64,{base64_image}"
+                
+                # Agregar a los datos de actualización
+                update_data["profile_picture"] = data_uri
+                
+                print(f"✅ Nueva foto para {nombre}: {len(base64_image)} caracteres")
+                
+            except Exception as e:
+                print(f"❌ Error procesando imagen: {str(e)}")
+                messages.error(request, f"Error processing image: {str(e)}")
+                context = {
+                    "action": "Edit",
+                    "vet": vet,
+                    "rol": request.session.get("rol"),
+                    "username": request.session.get("user")
+                }
+                return render(request, "vets_form.html", context)
+
+        # Actualizar veterinario
+        veterinarios.update_one({"_id": ObjectId(id)}, {"$set": update_data})
+        print(f"✅ Veterinario {nombre} actualizado")
         
         messages.success(request, f"Dr. {nombre} updated successfully.")
         return redirect("list_veterinarios")
 
-    return render(request, "vets_form.html", {"action": "Edit", "vet": vet})
+    # GET request
+    context = {
+        "action": "Edit",
+        "vet": vet,
+        "rol": request.session.get("rol"),
+        "username": request.session.get("user")
+    }
+    return render(request, "vets_form.html", context)
 
 
 def delete_veterinario(request, id):
     """Elimina un veterinario del sistema."""
+    if "user" not in request.session:
+        messages.warning(request, "Please log in first.")
+        return redirect("login")
+    
     if request.session.get("rol") != "Administrador":
         messages.error(request, "Only administrators can delete veterinarians.")
         return redirect("index")
@@ -495,8 +847,8 @@ def delete_veterinario(request, id):
         messages.error(request, "Veterinarian not found.")
         return redirect("list_veterinarios")
 
-    # Opcional: Verificar si el veterinario tiene citas pendientes
-    # from tu_archivo_db import citas
+    # Opcional: Verificar si tiene citas pendientes
+    # from .conexion import citas
     # citas_pendientes = citas.count_documents({
     #     "veterinario_id": str(id),
     #     "estado": "Pendiente"
@@ -506,8 +858,11 @@ def delete_veterinario(request, id):
     #     return redirect("list_veterinarios")
 
     veterinarios.delete_one({"_id": ObjectId(id)})
+    print(f"🗑️ Veterinario {vet['nombre']} eliminado")
+    
     messages.info(request, f"Dr. {vet['nombre']} has been deleted from the system.")
     return redirect("list_veterinarios")
+
 
 # ------------------ CRUD de Citas ------------------
 
@@ -942,7 +1297,7 @@ def edit_cita(request, id):
     for v in veterinarios.find():
         v["id"] = str(v["_id"])
         vets.append(v)
-
+    
     # ============================================
     # 🔧 SECCIÓN MODIFICADA - Procesar formulario (POST)
     # ============================================
@@ -1479,8 +1834,14 @@ def reports(request):
 
 
 
+# ============================================
+# BACKEND ACTUALIZADO - edit_profile con Foto
+# ============================================
+
+
+
 def edit_profile(request):
-    """Vista para editar el perfil del usuario."""
+    """Vista para editar el perfil del usuario con imagen en MongoDB."""
     
     # Verificar si el usuario está logueado
     if "user" not in request.session:
@@ -1508,6 +1869,7 @@ def edit_profile(request):
         password_actual = request.POST.get("password_actual", "").strip()
         password_nueva = request.POST.get("password_nueva", "").strip()
         password_confirmar = request.POST.get("password_confirmar", "").strip()
+        remove_profile_picture = request.POST.get("remove_profile_picture", "") == "true"
         
         # Datos de veterinario (si aplica)
         especialidad = request.POST.get("especialidad", "").strip()
@@ -1529,7 +1891,48 @@ def edit_profile(request):
             "Email": email
         }
         
-        # Si quiere cambiar la contraseña
+        # ===================================================
+        # MANEJO DE FOTO DE PERFIL - BASE64 EN MONGODB
+        # ===================================================
+        
+        # Opción 1: Eliminar foto actual
+        if remove_profile_picture:
+            update_data["profile_picture"] = None
+        
+        # Opción 2: Subir nueva foto
+        if 'profile_picture' in request.FILES and not remove_profile_picture:
+            profile_picture = request.FILES['profile_picture']
+            
+            # Validar tipo de archivo
+            allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+            if profile_picture.content_type not in allowed_types:
+                messages.error(request, "Invalid file type. Only JPG, PNG, GIF, and WEBP are allowed.")
+                return redirect("edit_profile")
+            
+            # Validar tamaño (5MB máximo)
+            if profile_picture.size > 5 * 1024 * 1024:
+                messages.error(request, "File size must be less than 5MB.")
+                return redirect("edit_profile")
+            
+            try:
+                # Leer el archivo y convertir a Base64
+                file_content = profile_picture.read()
+                base64_image = base64.b64encode(file_content).decode('utf-8')
+                
+                # Guardar como Data URI (se puede usar directamente en <img src="">)
+                data_uri = f"data:{profile_picture.content_type};base64,{base64_image}"
+                
+                # Guardar en la base de datos
+                update_data["profile_picture"] = data_uri
+                
+            except Exception as e:
+                messages.error(request, f"Error processing image: {str(e)}")
+                return redirect("edit_profile")
+        
+        # ===================================================
+        # CAMBIO DE CONTRASEÑA
+        # ===================================================
+        
         if password_nueva:
             # Verificar contraseña actual
             if password_actual != user.get("Password", ""):
@@ -1548,13 +1951,27 @@ def edit_profile(request):
             
             update_data["Password"] = password_nueva
         
-        # Actualizar usuario
+        # ===================================================
+        # ACTUALIZAR USUARIO EN LA BASE DE DATOS
+        # ===================================================
+        
         users.update_one(
             {"_id": user["_id"]},
             {"$set": update_data}
         )
         
-        # Si es veterinario, actualizar sus datos también
+        # ===================================================
+        # ACTUALIZAR SESIÓN CON LA FOTO
+        # ===================================================
+        
+        if "profile_picture" in update_data:
+            request.session["user_profile_picture"] = update_data["profile_picture"] or ""
+            request.session.modified = True
+        
+        # ===================================================
+        # ACTUALIZAR DATOS DE VETERINARIO (si aplica)
+        # ===================================================
+        
         if rol == "Veterinario" and vet_data:
             vet_update = {}
             
@@ -1573,7 +1990,10 @@ def edit_profile(request):
         messages.success(request, "Profile updated successfully!")
         return redirect("edit_profile")
     
-    # GET request - mostrar formulario
+    # ===================================================
+    # GET REQUEST - MOSTRAR FORMULARIO
+    # ===================================================
+    
     return render(request, "edit_profile.html", {
         "username": username,
         "rol": rol,

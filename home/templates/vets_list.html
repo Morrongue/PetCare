@@ -70,7 +70,6 @@
     <!-- Buscador Avanzado -->
     <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
       <div class="flex flex-col md:flex-row md:items-center gap-4">
-        <!-- Search Input -->
         <div class="flex-1 relative">
           <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
           <input type="text" 
@@ -82,13 +81,11 @@
                  oninput="searchVets()">
         </div>
 
-        <!-- Filter by Specialty -->
         <div class="md:w-64">
           <select id="specialtyFilter" 
                   onchange="searchVets()"
                   class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
-                         focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
-                         transition-all duration-300">
+                         focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent">
             <option value="">All Specialties</option>
             <option value="General Practice">🏥 General Practice</option>
             <option value="Surgery">⚕️ Surgery</option>
@@ -104,7 +101,6 @@
           </select>
         </div>
 
-        <!-- Clear Button -->
         <button onclick="clearSearch()"
                 class="bg-dark-900 hover:bg-dark-700 text-gray-300 hover:text-white px-6 py-3 rounded-lg
                        transition-all duration-300 border border-dark-600 hover:border-olive-600">
@@ -112,19 +108,14 @@
         </button>
       </div>
 
-      <!-- Search Results Counter -->
       <div class="mt-3 flex items-center justify-between">
         <p class="text-sm text-gray-400">
           <span id="resultCount">{{ vets|length }}</span> veterinarians found
         </p>
-        <p class="text-xs text-gray-500">
-          <i class="fas fa-info-circle mr-1"></i>
-          Search across all fields in real-time
-        </p>
       </div>
     </div>
 
-    <!-- Grid de veterinarios con cards profesionales -->
+    <!-- Grid de veterinarios -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="vetsGrid">
       {% for vet in vets %}
         <div class="vet-card bg-dark-800 border border-dark-700 rounded-xl overflow-hidden 
@@ -138,22 +129,30 @@
           
           <!-- Header con imagen de fondo -->
           <div class="relative h-24 bg-gradient-to-br from-olive-800 to-olive-700">
-            <!-- Patrón de fondo -->
             <div class="absolute inset-0 opacity-20 overflow-hidden">
               <div class="absolute inset-0" style="background-image: url('https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=400'); background-size: cover; background-position: center;"></div>
             </div>
           </div>
           
-          <!-- Avatar posicionado después del header -->
+          <!-- Avatar con foto o iniciales -->
           <div class="relative -mt-12 mb-2">
             <div class="flex justify-center">
               <div class="w-24 h-24 rounded-full bg-dark-900 p-1 shadow-xl">
-                <div class="w-full h-full rounded-full flex items-center justify-center overflow-hidden
-                            {% cycle 'bg-gradient-to-br from-purple-600 to-purple-700' 'bg-gradient-to-br from-blue-600 to-blue-700' 'bg-gradient-to-br from-green-600 to-green-700' 'bg-gradient-to-br from-orange-600 to-orange-700' 'bg-gradient-to-br from-pink-600 to-pink-700' 'bg-gradient-to-br from-teal-600 to-teal-700' 'bg-gradient-to-br from-indigo-600 to-indigo-700' 'bg-gradient-to-br from-red-600 to-red-700' %}">
-                  <!-- Avatar con texto -->
-                  <span class="text-white text-3xl font-bold">
-                    {{ vet.nombre|slice:":2"|upper }}
-                  </span>
+                <div class="w-full h-full rounded-full flex items-center justify-center overflow-hidden">
+                  {% if vet.profile_picture %}
+                    <!-- Mostrar foto de perfil -->
+                    <img src="{{ vet.profile_picture }}" 
+                         alt="{{ vet.nombre }}" 
+                         class="w-full h-full object-cover">
+                  {% else %}
+                    <!-- Avatar con iniciales -->
+                    <div class="w-full h-full flex items-center justify-center
+                                {% cycle 'bg-gradient-to-br from-purple-600 to-purple-700' 'bg-gradient-to-br from-blue-600 to-blue-700' 'bg-gradient-to-br from-green-600 to-green-700' 'bg-gradient-to-br from-orange-600 to-orange-700' 'bg-gradient-to-br from-pink-600 to-pink-700' 'bg-gradient-to-br from-teal-600 to-teal-700' 'bg-gradient-to-br from-indigo-600 to-indigo-700' 'bg-gradient-to-br from-red-600 to-red-700' %}">
+                      <span class="text-white text-3xl font-bold">
+                        {{ vet.nombre|slice:":2"|upper }}
+                      </span>
+                    </div>
+                  {% endif %}
                 </div>
               </div>
               
@@ -164,12 +163,10 @@
 
           <!-- Información del veterinario -->
           <div class="px-6 pb-6">
-            <!-- Nombre -->
             <h3 class="text-xl font-bold text-white mb-1 text-center group-hover:text-olive-400 transition-colors vet-name">
               Dr. {{ vet.nombre }}
             </h3>
             
-            <!-- Especialidad -->
             <div class="flex justify-center mb-4">
               <div class="inline-flex items-center space-x-1 bg-olive-700/30 text-olive-400 px-3 py-1 rounded-full text-xs font-semibold vet-specialty">
                 <i class="fas fa-award"></i>
@@ -177,14 +174,13 @@
               </div>
             </div>
 
-            <!-- Contact Preview (hidden text for search) -->
+            <!-- Hidden text for search -->
             <div class="hidden">
               <span class="vet-email">{{ vet.email|default:'' }}</span>
               <span class="vet-phone">{{ vet.phone|default:'' }}</span>
               <span class="vet-license">{{ vet.license|default:'' }}</span>
             </div>
 
-            <!-- Detalles adicionales -->
             <div class="space-y-2 mb-4 text-sm">
               <div class="flex items-center justify-center text-gray-400">
                 <i class="fas fa-stethoscope text-olive-500 w-5"></i>
@@ -211,14 +207,15 @@
               </a>
             </div>
 
-            <!-- Botón de ver perfil -->
+            <!-- Ver perfil -->
             <button onclick="openProfile({
               id: '{{ vet.id }}',
               nombre: '{{ vet.nombre|escapejs }}',
               especialidad: '{{ vet.especialidad|escapejs }}',
               email: '{% if vet.email %}{{ vet.email|escapejs }}{% endif %}',
               phone: '{% if vet.phone %}{{ vet.phone|escapejs }}{% endif %}',
-              license: '{% if vet.license %}{{ vet.license|escapejs }}{% endif %}'
+              license: '{% if vet.license %}{{ vet.license|escapejs }}{% endif %}',
+              profile_picture: '{% if vet.profile_picture %}{{ vet.profile_picture|escapejs }}{% endif %}'
             })" 
                     class="w-full mt-3 bg-dark-900 hover:bg-dark-700 text-gray-300 hover:text-white py-2 rounded-lg
                            transition-colors duration-300 text-sm font-medium border border-dark-600">
@@ -229,19 +226,16 @@
       {% endfor %}
     </div>
 
-    <!-- No Results Message -->
+    <!-- No Results -->
     <div id="noResults" class="hidden bg-dark-800 border border-dark-700 rounded-xl p-12 text-center">
       <div class="max-w-md mx-auto">
         <div class="w-20 h-20 mx-auto mb-4 bg-dark-700 rounded-full flex items-center justify-center">
           <i class="fas fa-search text-gray-600 text-3xl"></i>
         </div>
         <h3 class="text-xl font-bold text-white mb-2">No veterinarians found</h3>
-        <p class="text-gray-400 mb-4">
-          Try adjusting your search terms or filters
-        </p>
+        <p class="text-gray-400 mb-4">Try adjusting your search terms or filters</p>
         <button onclick="clearSearch()"
-                class="bg-olive-700 hover:bg-olive-600 text-white px-6 py-2 rounded-lg
-                       transition-colors duration-300">
+                class="bg-olive-700 hover:bg-olive-600 text-white px-6 py-2 rounded-lg transition-colors">
           <i class="fas fa-redo mr-2"></i>Clear Search
         </button>
       </div>
@@ -251,7 +245,6 @@
     <!-- Estado vacío -->
     <div class="bg-dark-800 border border-dark-700 rounded-2xl p-12 text-center">
       <div class="max-w-md mx-auto">
-        <!-- Icono grande -->
         <div class="w-32 h-32 mx-auto mb-6 bg-gradient-to-br from-purple-800 to-purple-700 rounded-full 
                     flex items-center justify-center shadow-2xl">
           <i class="fas fa-user-md text-white text-5xl"></i>
@@ -261,39 +254,6 @@
         <p class="text-gray-400 mb-6">
           Start by adding your first veterinarian to provide professional care to pets.
         </p>
-
-        <!-- Beneficios -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 text-left">
-          <div class="flex items-start space-x-3">
-            <div class="w-8 h-8 bg-purple-700 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-              <i class="fas fa-stethoscope text-white text-sm"></i>
-            </div>
-            <div>
-              <p class="text-white font-medium text-sm">Expert Care</p>
-              <p class="text-gray-500 text-xs">Professional service</p>
-            </div>
-          </div>
-
-          <div class="flex items-start space-x-3">
-            <div class="w-8 h-8 bg-olive-700 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-              <i class="fas fa-calendar-check text-white text-sm"></i>
-            </div>
-            <div>
-              <p class="text-white font-medium text-sm">Appointments</p>
-              <p class="text-gray-500 text-xs">Easy scheduling</p>
-            </div>
-          </div>
-
-          <div class="flex items-start space-x-3">
-            <div class="w-8 h-8 bg-blue-700 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
-              <i class="fas fa-user-check text-white text-sm"></i>
-            </div>
-            <div>
-              <p class="text-white font-medium text-sm">Team Management</p>
-              <p class="text-gray-500 text-xs">Organized system</p>
-            </div>
-          </div>
-        </div>
 
         <a href="{% url 'add_veterinario' %}" 
            class="inline-flex items-center space-x-2 bg-gradient-to-r from-olive-700 to-olive-600 
@@ -308,28 +268,26 @@
 
 </div>
 
-<!-- Modal de Perfil del Veterinario -->
+<!-- Modal de Perfil -->
 <div id="profileModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
   <div class="bg-dark-800 border border-dark-700 rounded-2xl max-w-2xl w-full shadow-2xl transform transition-all scale-95"
        onclick="event.stopPropagation()">
     
-    <!-- Header del Modal -->
     <div class="relative h-32 bg-gradient-to-br from-olive-800 to-olive-700 rounded-t-2xl overflow-hidden">
       <div class="absolute inset-0 opacity-20">
-        <div class="absolute inset-0" style="background-image: url('https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800'); background-size: cover; background-position: center;"></div>
+        <div class="absolute inset-0" style="background-image: url('https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800'); background-size: cover;"></div>
       </div>
       
-      <!-- Close Button -->
       <button onclick="closeProfile()" 
               class="absolute top-4 right-4 w-10 h-10 bg-dark-900/80 hover:bg-dark-900 rounded-full
                      flex items-center justify-center text-gray-400 hover:text-white transition-colors">
         <i class="fas fa-times text-xl"></i>
       </button>
       
-      <!-- Avatar -->
+      <!-- Avatar en modal -->
       <div class="absolute -bottom-16 left-8">
         <div class="w-32 h-32 rounded-full bg-dark-900 p-1.5 shadow-2xl">
-          <div id="modalAvatar" class="w-full h-full rounded-full bg-gradient-to-br from-olive-600 to-olive-700 
+          <div id="modalAvatar" class="w-full h-full rounded-full overflow-hidden bg-gradient-to-br from-olive-600 to-olive-700 
                                        flex items-center justify-center">
             <span class="text-white text-5xl font-bold">VT</span>
           </div>
@@ -338,9 +296,7 @@
       </div>
     </div>
 
-    <!-- Body del Modal -->
     <div class="p-8 pt-20">
-      <!-- Nombre y Especialidad -->
       <div class="mb-6">
         <h2 class="text-3xl font-bold text-white mb-2" id="modalName">Dr. Name</h2>
         <div class="flex items-center space-x-3">
@@ -355,7 +311,6 @@
         </div>
       </div>
 
-      <!-- Información de Contacto -->
       <div class="bg-dark-900 border border-dark-600 rounded-xl p-6 mb-6">
         <h3 class="text-lg font-bold text-white mb-4 flex items-center">
           <i class="fas fa-address-card text-olive-500 mr-2"></i>
@@ -363,7 +318,6 @@
         </h3>
         
         <div class="space-y-4">
-          <!-- Email -->
           <div class="flex items-center space-x-3" id="modalEmailContainer">
             <div class="w-10 h-10 bg-olive-700 rounded-lg flex items-center justify-center">
               <i class="fas fa-envelope text-white"></i>
@@ -374,14 +328,8 @@
                 <span id="modalEmail">Not provided</span>
               </a>
             </div>
-            <button onclick="copyToClipboard('email')" 
-                    class="text-gray-500 hover:text-olive-400 transition-colors"
-                    title="Copy email">
-              <i class="fas fa-copy"></i>
-            </button>
           </div>
 
-          <!-- Phone -->
           <div class="flex items-center space-x-3" id="modalPhoneContainer">
             <div class="w-10 h-10 bg-blue-700 rounded-lg flex items-center justify-center">
               <i class="fas fa-phone text-white"></i>
@@ -392,14 +340,8 @@
                 <span id="modalPhone">Not provided</span>
               </a>
             </div>
-            <button onclick="copyToClipboard('phone')" 
-                    class="text-gray-500 hover:text-olive-400 transition-colors"
-                    title="Copy phone">
-              <i class="fas fa-copy"></i>
-            </button>
           </div>
 
-          <!-- License -->
           <div class="flex items-center space-x-3" id="modalLicenseContainer">
             <div class="w-10 h-10 bg-purple-700 rounded-lg flex items-center justify-center">
               <i class="fas fa-id-card text-white"></i>
@@ -408,41 +350,10 @@
               <p class="text-xs text-gray-500">License Number</p>
               <p class="text-white" id="modalLicense">Not provided</p>
             </div>
-            <button onclick="copyToClipboard('license')" 
-                    class="text-gray-500 hover:text-olive-400 transition-colors"
-                    title="Copy license">
-              <i class="fas fa-copy"></i>
-            </button>
           </div>
         </div>
       </div>
 
-      <!-- Professional Details -->
-      <div class="bg-dark-900 border border-dark-600 rounded-xl p-6 mb-6">
-        <h3 class="text-lg font-bold text-white mb-4 flex items-center">
-          <i class="fas fa-stethoscope text-olive-500 mr-2"></i>
-          Professional Details
-        </h3>
-        
-        <div class="grid grid-cols-2 gap-4">
-          <div class="flex items-center space-x-3">
-            <i class="fas fa-graduation-cap text-olive-500"></i>
-            <div>
-              <p class="text-xs text-gray-500">Qualification</p>
-              <p class="text-white text-sm">Veterinary Medicine</p>
-            </div>
-          </div>
-          <div class="flex items-center space-x-3">
-            <i class="fas fa-calendar-check text-olive-500"></i>
-            <div>
-              <p class="text-xs text-gray-500">Availability</p>
-              <p class="text-white text-sm">Available for Appointments</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Action Buttons -->
       <div class="flex space-x-3">
         <a href="#" id="modalEditLink"
            class="flex-1 bg-olive-700 hover:bg-olive-600 text-white text-center py-3 rounded-lg
@@ -459,22 +370,17 @@
   </div>
 </div>
 
-<!-- Script para búsqueda, animaciones y modal -->
 <script>
-  // Variables globales
   let allCards = [];
   let currentVet = null;
   
-  // Inicializar al cargar
   document.addEventListener('DOMContentLoaded', function() {
     allCards = Array.from(document.querySelectorAll('.vet-card'));
     
-    // Animación de entrada para las cards
     const cards = document.querySelectorAll('.vet-card');
     cards.forEach((card, index) => {
       card.style.opacity = '0';
       card.style.transform = 'translateY(20px)';
-      
       setTimeout(() => {
         card.style.transition = 'all 0.5s ease-in-out';
         card.style.opacity = '1';
@@ -482,26 +388,18 @@
       }, index * 100);
     });
 
-    // Close modal on outside click
     document.getElementById('profileModal').addEventListener('click', function(e) {
-      if (e.target === this) {
-        closeProfile();
-      }
+      if (e.target === this) closeProfile();
     });
 
-    // Close modal with Escape key
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') {
-        closeProfile();
-      }
+      if (e.key === 'Escape') closeProfile();
     });
   });
 
-  // Función principal de búsqueda
   function searchVets() {
     const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
     const specialtyFilter = document.getElementById('specialtyFilter').value.toLowerCase();
-    
     let visibleCount = 0;
 
     allCards.forEach(card => {
@@ -511,38 +409,23 @@
       const phone = card.dataset.phone || '';
       const license = card.dataset.license || '';
 
-      // Búsqueda en todos los campos
       const matchesSearch = !searchTerm || 
-        name.includes(searchTerm) ||
-        specialty.includes(searchTerm) ||
-        email.includes(searchTerm) ||
-        phone.includes(searchTerm) ||
-        license.includes(searchTerm);
+        name.includes(searchTerm) || specialty.includes(searchTerm) ||
+        email.includes(searchTerm) || phone.includes(searchTerm) || license.includes(searchTerm);
 
-      // Filtro por especialidad
       const matchesSpecialty = !specialtyFilter || specialty === specialtyFilter;
 
-      // Mostrar/ocultar card
       if (matchesSearch && matchesSpecialty) {
         card.style.display = '';
         visibleCount++;
-        
-        // Highlight de texto encontrado
-        if (searchTerm) {
-          highlightText(card, searchTerm);
-        } else {
-          removeHighlight(card);
-        }
       } else {
         card.style.display = 'none';
       }
     });
 
-    // Actualizar contador
     document.getElementById('resultCount').textContent = visibleCount;
     document.getElementById('totalVets').textContent = visibleCount;
 
-    // Mostrar/ocultar mensaje de "no results"
     const noResults = document.getElementById('noResults');
     const grid = document.getElementById('vetsGrid');
     
@@ -555,129 +438,61 @@
     }
   }
 
-  // Resaltar texto encontrado
-  function highlightText(card, searchTerm) {
-    const textElements = card.querySelectorAll('.vet-name, .vet-specialty, .vet-email, .vet-phone, .vet-license');
-    
-    textElements.forEach(element => {
-      const originalText = element.textContent;
-      const lowerText = originalText.toLowerCase();
-      const index = lowerText.indexOf(searchTerm);
-      
-      if (index !== -1) {
-        const before = originalText.substring(0, index);
-        const match = originalText.substring(index, index + searchTerm.length);
-        const after = originalText.substring(index + searchTerm.length);
-        
-        element.innerHTML = `${before}<mark class="bg-olive-600 text-white px-1 rounded">${match}</mark>${after}`;
-      }
-    });
-  }
-
-  // Remover resaltado
-  function removeHighlight(card) {
-    const textElements = card.querySelectorAll('.vet-name, .vet-specialty, .vet-email, .vet-phone, .vet-license');
-    textElements.forEach(element => {
-      element.innerHTML = element.textContent;
-    });
-  }
-
-  // Limpiar búsqueda
   function clearSearch() {
     document.getElementById('searchInput').value = '';
     document.getElementById('specialtyFilter').value = '';
     searchVets();
   }
 
-  // Búsqueda en tiempo real con debounce
-  let searchTimeout;
-  document.getElementById('searchInput').addEventListener('input', function() {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(searchVets, 300);
-  });
-
-  // Enter key para buscar
-  document.getElementById('searchInput').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-      clearTimeout(searchTimeout);
-      searchVets();
-    }
-  });
-
-  // Abrir modal de perfil
   function openProfile(vet) {
     currentVet = vet;
     const modal = document.getElementById('profileModal');
     
-    // Colores para el avatar
-    const colors = [
-      'from-purple-600 to-purple-700',
-      'from-blue-600 to-blue-700', 
-      'from-green-600 to-green-700',
-      'from-orange-600 to-orange-700',
-      'from-pink-600 to-pink-700',
-      'from-teal-600 to-teal-700',
-      'from-indigo-600 to-indigo-700',
-      'from-red-600 to-red-700'
-    ];
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
-    
-    // Actualizar avatar con letras
-    const initials = vet.nombre.substring(0, 2).toUpperCase();
-    document.getElementById('modalAvatar').outerHTML = `
-      <div id="modalAvatar" class="w-full h-full rounded-full bg-gradient-to-br ${randomColor} 
-                                     flex items-center justify-center">
-        <span class="text-white text-5xl font-bold">${initials}</span>
-      </div>
-    `;
+    // Actualizar avatar
+    const modalAvatar = document.getElementById('modalAvatar');
+    if (vet.profile_picture) {
+      modalAvatar.innerHTML = `<img src="${vet.profile_picture}" class="w-full h-full object-cover">`;
+    } else {
+      const initials = vet.nombre.substring(0, 2).toUpperCase();
+      const colors = [
+        'from-purple-600 to-purple-700', 'from-blue-600 to-blue-700', 
+        'from-green-600 to-green-700', 'from-orange-600 to-orange-700'
+      ];
+      const randomColor = colors[Math.floor(Math.random() * colors.length)];
+      modalAvatar.outerHTML = `
+        <div id="modalAvatar" class="w-full h-full rounded-full bg-gradient-to-br ${randomColor} 
+                                       flex items-center justify-center">
+          <span class="text-white text-5xl font-bold">${initials}</span>
+        </div>
+      `;
+    }
     
     document.getElementById('modalName').textContent = 'Dr. ' + vet.nombre;
     document.getElementById('modalSpecialty').textContent = vet.especialidad;
     
-    // Email
-    const emailContainer = document.getElementById('modalEmailContainer');
-    const emailLink = document.getElementById('modalEmailLink');
-    const emailText = document.getElementById('modalEmail');
     if (vet.email) {
-      emailText.textContent = vet.email;
-      emailLink.href = 'mailto:' + vet.email;
-      emailContainer.style.display = 'flex';
+      document.getElementById('modalEmail').textContent = vet.email;
+      document.getElementById('modalEmailLink').href = 'mailto:' + vet.email;
     } else {
-      emailText.textContent = 'Not provided';
-      emailLink.href = '#';
-      emailContainer.style.display = 'flex';
+      document.getElementById('modalEmail').textContent = 'Not provided';
     }
     
-    // Phone
-    const phoneContainer = document.getElementById('modalPhoneContainer');
-    const phoneLink = document.getElementById('modalPhoneLink');
-    const phoneText = document.getElementById('modalPhone');
     if (vet.phone) {
-      phoneText.textContent = vet.phone;
-      phoneLink.href = 'tel:' + vet.phone;
-      phoneContainer.style.display = 'flex';
+      document.getElementById('modalPhone').textContent = vet.phone;
+      document.getElementById('modalPhoneLink').href = 'tel:' + vet.phone;
     } else {
-      phoneText.textContent = 'Not provided';
-      phoneLink.href = '#';
-      phoneContainer.style.display = 'flex';
+      document.getElementById('modalPhone').textContent = 'Not provided';
     }
     
-    // License
-    const licenseContainer = document.getElementById('modalLicenseContainer');
-    const licenseText = document.getElementById('modalLicense');
     if (vet.license) {
-      licenseText.textContent = vet.license;
-      licenseContainer.style.display = 'flex';
+      document.getElementById('modalLicense').textContent = vet.license;
     } else {
-      licenseText.textContent = 'Not provided';
-      licenseContainer.style.display = 'flex';
+      document.getElementById('modalLicense').textContent = 'Not provided';
     }
     
-    // Edit link - Obtener URL del botón de editar de la card
     const editButton = document.querySelector(`a[href*="edit_veterinario"][href*="${vet.id}"]`);
     document.getElementById('modalEditLink').href = editButton ? editButton.href : `/vets/edit/${vet.id}/`;
     
-    // Mostrar modal con animación
     modal.classList.remove('hidden');
     setTimeout(() => {
       modal.querySelector('div > div').classList.remove('scale-95');
@@ -685,98 +500,12 @@
     }, 10);
   }
 
-  // Cerrar modal
   function closeProfile() {
     const modal = document.getElementById('profileModal');
     modal.querySelector('div > div').classList.remove('scale-100');
     modal.querySelector('div > div').classList.add('scale-95');
-    
-    setTimeout(() => {
-      modal.classList.add('hidden');
-    }, 200);
+    setTimeout(() => modal.classList.add('hidden'), 200);
   }
-
-  // Copiar al portapapeles
-  function copyToClipboard(field) {
-    if (!currentVet) return;
-    
-    let text = '';
-    if (field === 'email') text = currentVet.email || '';
-    else if (field === 'phone') text = currentVet.phone || '';
-    else if (field === 'license') text = currentVet.license || '';
-    
-    if (!text) {
-      showToast('No information to copy', 'error');
-      return;
-    }
-    
-    navigator.clipboard.writeText(text).then(() => {
-      showToast('Copied to clipboard!', 'success');
-    }).catch(() => {
-      showToast('Failed to copy', 'error');
-    });
-  }
-
-  // Toast notification
-  function showToast(message, type) {
-    const toast = document.createElement('div');
-    toast.className = `fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300
-                       ${type === 'success' ? 'bg-green-700 text-white' : 'bg-red-700 text-white'}`;
-    toast.innerHTML = `
-      <i class="fas ${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'} mr-2"></i>
-      ${message}
-    `;
-    
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-      toast.style.transform = 'translateX(400px)';
-      setTimeout(() => toast.remove(), 300);
-    }, 2000);
-  }
-
-  // Keyboard shortcuts
-  document.addEventListener('keydown', function(e) {
-    // Ctrl/Cmd + K para focus en búsqueda
-    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-      e.preventDefault();
-      document.getElementById('searchInput').focus();
-    }
-    
-    // Escape para limpiar búsqueda o cerrar modal
-    if (e.key === 'Escape') {
-      if (!document.getElementById('profileModal').classList.contains('hidden')) {
-        closeProfile();
-      } else {
-        clearSearch();
-        document.getElementById('searchInput').blur();
-      }
-    }
-  });
 </script>
-
-<!-- Estilos adicionales -->
-<style>
-  mark {
-    animation: highlight 0.3s ease-in-out;
-  }
-
-  @keyframes highlight {
-    from {
-      background-color: transparent;
-    }
-    to {
-      background-color: #6B8E23;
-    }
-  }
-
-  .vet-card {
-    transition: all 0.3s ease-in-out;
-  }
-
-  #profileModal > div {
-    transition: transform 0.3s ease-in-out;
-  }
-</style>
 
 {% endblock %}

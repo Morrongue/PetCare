@@ -33,8 +33,105 @@
     {% endfor %}
   {% endif %}
 
-  <form method="POST" class="space-y-6">
+  <form method="POST" enctype="multipart/form-data" class="space-y-6">
     {% csrf_token %}
+
+    <!-- Profile Picture Card -->
+    <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+      <div class="flex items-center space-x-3 mb-6">
+        <div class="w-12 h-12 bg-gradient-to-br from-pink-700 to-purple-700 rounded-lg flex items-center justify-center">
+          <i class="fas fa-camera text-white text-xl"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-bold text-white">Profile Picture</h2>
+          <p class="text-sm text-gray-400">Update your profile photo</p>
+        </div>
+      </div>
+
+      <div class="flex flex-col md:flex-row items-center gap-6">
+        <!-- Current Profile Picture Preview -->
+        <div class="flex-shrink-0">
+          <div class="relative">
+            <!-- Preview Container -->
+            <div id="profilePicturePreview" class="w-32 h-32 rounded-full overflow-hidden border-4 border-dark-600 shadow-xl">
+              {% if user.profile_picture %}
+                <img src="{{ user.profile_picture }}" alt="Profile" class="w-full h-full object-cover">
+              {% else %}
+                <!-- Default Avatar with Initials -->
+                <div class="w-full h-full bg-gradient-to-br from-olive-600 to-olive-700 flex items-center justify-center">
+                  <span class="text-white text-4xl font-bold">
+                    {{ user.User|slice:":2"|upper }}
+                  </span>
+                </div>
+              {% endif %}
+            </div>
+            
+            <!-- Change Photo Badge -->
+            <div class="absolute bottom-0 right-0 w-10 h-10 bg-olive-600 hover:bg-olive-500 rounded-full border-4 border-dark-800 flex items-center justify-center cursor-pointer transition-all duration-300 transform hover:scale-110"
+                 onclick="document.getElementById('profile_picture').click()">
+              <i class="fas fa-camera text-white text-sm"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Upload Controls -->
+        <div class="flex-1 w-full">
+          <input type="file" 
+                 id="profile_picture" 
+                 name="profile_picture"
+                 accept="image/*"
+                 class="hidden"
+                 onchange="previewImage(event)">
+          
+          <div class="space-y-3">
+            <!-- Upload Button -->
+            <button type="button" 
+                    onclick="document.getElementById('profile_picture').click()"
+                    class="w-full md:w-auto px-6 py-3 bg-gradient-to-r from-purple-700 to-pink-700 
+                           hover:from-purple-600 hover:to-pink-600 text-white rounded-lg
+                           transition-all duration-300 shadow-lg hover:shadow-purple-500/50 font-medium
+                           transform hover:scale-105 inline-flex items-center justify-center space-x-2">
+              <i class="fas fa-upload"></i>
+              <span>Choose New Photo</span>
+            </button>
+
+            <!-- File Info -->
+            <div id="fileInfo" class="hidden">
+              <div class="flex items-center space-x-2 text-sm text-gray-400">
+                <i class="fas fa-file-image text-purple-400"></i>
+                <span id="fileName"></span>
+                <button type="button" 
+                        onclick="clearFileInput()"
+                        class="text-red-400 hover:text-red-300 ml-2">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Guidelines -->
+            <div class="text-xs text-gray-500 space-y-1">
+              <p><i class="fas fa-info-circle mr-1 text-blue-400"></i>Maximum file size: 5MB</p>
+              <p><i class="fas fa-check-circle mr-1 text-green-400"></i>Accepted formats: JPG, PNG, GIF</p>
+              <p><i class="fas fa-star mr-1 text-yellow-400"></i>Recommended: Square image, at least 200x200px</p>
+            </div>
+
+            <!-- Remove Photo Button (si ya tiene foto) -->
+            {% if user.profile_picture %}
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="checkbox" 
+                     name="remove_profile_picture" 
+                     value="true"
+                     class="w-4 h-4 text-red-600 bg-dark-900 border-dark-600 rounded 
+                            focus:ring-red-500 focus:ring-2">
+              <span class="text-sm text-red-400 hover:text-red-300">
+                <i class="fas fa-trash-alt mr-1"></i>Remove current photo
+              </span>
+            </label>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Account Information Card -->
     <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
@@ -237,6 +334,7 @@
           <li>Don't share your password with anyone</li>
           <li>Update your email to receive important notifications</li>
           <li>Keep your professional information up to date</li>
+          <li>Use a clear, professional profile picture</li>
         </ul>
       </div>
     </div>
@@ -244,8 +342,57 @@
 
 </div>
 
-<!-- Password Strength Indicator (optional enhancement) -->
+<!-- JavaScript for Profile Picture Preview and Password Validation -->
 <script>
+  // Profile Picture Preview
+  function previewImage(event) {
+    const file = event.target.files[0];
+    const preview = document.getElementById('profilePicturePreview');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileName = document.getElementById('fileName');
+    
+    if (file) {
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('File size must be less than 5MB');
+        event.target.value = '';
+        return;
+      }
+      
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        event.target.value = '';
+        return;
+      }
+      
+      // Show file info
+      fileName.textContent = file.name;
+      fileInfo.classList.remove('hidden');
+      
+      // Preview image
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        preview.innerHTML = `<img src="${e.target.result}" alt="Preview" class="w-full h-full object-cover">`;
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+  
+  // Clear file input
+  function clearFileInput() {
+    const fileInput = document.getElementById('profile_picture');
+    const preview = document.getElementById('profilePicturePreview');
+    const fileInfo = document.getElementById('fileInfo');
+    
+    fileInput.value = '';
+    fileInfo.classList.add('hidden');
+    
+    // Restore original preview
+    location.reload();
+  }
+  
+  // Password Strength Indicator
   const newPasswordInput = document.getElementById('password_nueva');
   
   if (newPasswordInput) {

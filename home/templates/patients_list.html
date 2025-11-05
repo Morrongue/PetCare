@@ -66,41 +66,35 @@
       </div>
     </div>
 
-    <!-- Buscador Avanzado -->
+    <!-- Buscador -->
     <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
       <div class="flex flex-col md:flex-row md:items-center gap-4">
-        <!-- Search Input -->
         <div class="flex-1 relative">
           <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500"></i>
           <input type="text" 
                  id="searchInput"
                  placeholder="Search by name, species, breed..."
                  class="w-full bg-dark-900 border border-dark-600 rounded-lg pl-12 pr-4 py-3 text-white
-                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
-                        transition-all duration-300"
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent"
                  oninput="searchPets()">
         </div>
 
-        <!-- Filter by Species -->
         <div class="md:w-64">
           <select id="speciesFilter" 
                   onchange="searchPets()"
                   class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
-                         focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
-                         transition-all duration-300">
+                         focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent">
             <option value="">All Species</option>
             <option value="dog">🐕 Dog</option>
             <option value="cat">🐱 Cat</option>
             <option value="rabbit">🐰 Rabbit</option>
             <option value="bird">🐦 Bird</option>
             <option value="hamster">🐹 Hamster</option>
-            <option value="fish">🐠 Fish</option>
             <option value="reptile">🦎 Reptile</option>
             <option value="other">🐾 Other</option>
           </select>
         </div>
 
-        <!-- Clear Button -->
         <button onclick="clearSearch()"
                 class="bg-dark-900 hover:bg-dark-700 text-gray-300 hover:text-white px-6 py-3 rounded-lg
                        transition-all duration-300 border border-dark-600 hover:border-olive-600">
@@ -108,19 +102,14 @@
         </button>
       </div>
 
-      <!-- Search Results Counter -->
       <div class="mt-3 flex items-center justify-between">
         <p class="text-sm text-gray-400">
           <span id="resultCount">{{ patients|length }}</span> pets found
         </p>
-        <p class="text-xs text-gray-500">
-          <i class="fas fa-info-circle mr-1"></i>
-          Search across name, species, and breed
-        </p>
       </div>
     </div>
 
-    <!-- Grid de mascotas con cards -->
+    <!-- Grid de mascotas -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="petsGrid">
       {% for pet in patients %}
         <div class="pet-card bg-dark-800 border border-dark-700 rounded-xl overflow-hidden 
@@ -130,28 +119,34 @@
              data-species="{{ pet.especie|lower }}"
              data-breed="{{ pet.raza|lower }}">
           
-          <!-- Imagen del pet -->
+          <!-- Header con imagen -->
           <div class="relative h-48 bg-gradient-to-br from-olive-800 to-olive-700 overflow-hidden">
-            <!-- Imagen placeholder basada en especie -->
-            {% if pet.especie|lower == 'perro' or pet.especie|lower == 'dog' %}
-              <img src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&h=300&fit=crop" 
-                   class="w-full h-full object-cover opacity-80 group-hover:scale-110 transition-transform duration-500"
-                   alt="{{ pet.nombre }}">
-            {% elif pet.especie|lower == 'gato' or pet.especie|lower == 'cat' %}
-              <img src="https://images.unsplash.com/photo-1574158622682-e40e69881006?w=400&h=300&fit=crop" 
-                   class="w-full h-full object-cover opacity-80 group-hover:scale-110 transition-transform duration-500"
-                   alt="{{ pet.nombre }}">
-            {% elif pet.especie|lower == 'conejo' or pet.especie|lower == 'rabbit' %}
-              <img src="https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=400&h=300&fit=crop" 
-                   class="w-full h-full object-cover opacity-80 group-hover:scale-110 transition-transform duration-500"
+            {% if pet.profile_picture %}
+              <!-- Foto real del pet -->
+              <img src="{{ pet.profile_picture }}" 
+                   class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                    alt="{{ pet.nombre }}">
             {% else %}
-              <img src="https://images.unsplash.com/photo-1548681528-6a5c45b66b42?w=400&h=300&fit=crop" 
-                   class="w-full h-full object-cover opacity-80 group-hover:scale-110 transition-transform duration-500"
-                   alt="{{ pet.nombre }}">
+              <!-- Placeholder según especie -->
+              {% if pet.especie|lower == 'dog' %}
+                <img src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&h=300&fit=crop" 
+                     class="w-full h-full object-cover opacity-80 group-hover:scale-110 transition-transform duration-500"
+                     alt="{{ pet.nombre }}">
+              {% elif pet.especie|lower == 'cat' %}
+                <img src="https://images.unsplash.com/photo-1574158622682-e40e69881006?w=400&h=300&fit=crop" 
+                     class="w-full h-full object-cover opacity-80 group-hover:scale-110 transition-transform duration-500"
+                     alt="{{ pet.nombre }}">
+              {% elif pet.especie|lower == 'rabbit' %}
+                <img src="https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?w=400&h=300&fit=crop" 
+                     class="w-full h-full object-cover opacity-80 group-hover:scale-110 transition-transform duration-500"
+                     alt="{{ pet.nombre }}">
+              {% else %}
+                <div class="w-full h-full flex items-center justify-center">
+                  <i class="fas fa-paw text-white text-6xl opacity-50"></i>
+                </div>
+              {% endif %}
             {% endif %}
             
-            <!-- Overlay -->
             <div class="absolute inset-0 bg-gradient-to-t from-dark-900 via-dark-900/50 to-transparent"></div>
             
             <!-- Badge de especie -->
@@ -202,29 +197,25 @@
       {% endfor %}
     </div>
 
-    <!-- No Results Message -->
+    <!-- No Results -->
     <div id="noResults" class="hidden bg-dark-800 border border-dark-700 rounded-xl p-12 text-center">
       <div class="max-w-md mx-auto">
         <div class="w-20 h-20 mx-auto mb-4 bg-dark-700 rounded-full flex items-center justify-center">
           <i class="fas fa-search text-gray-600 text-3xl"></i>
         </div>
         <h3 class="text-xl font-bold text-white mb-2">No pets found</h3>
-        <p class="text-gray-400 mb-4">
-          Try adjusting your search terms or filters
-        </p>
+        <p class="text-gray-400 mb-4">Try adjusting your search terms or filters</p>
         <button onclick="clearSearch()"
-                class="bg-olive-700 hover:bg-olive-600 text-white px-6 py-2 rounded-lg
-                       transition-colors duration-300">
+                class="bg-olive-700 hover:bg-olive-600 text-white px-6 py-2 rounded-lg transition-colors">
           <i class="fas fa-redo mr-2"></i>Clear Search
         </button>
       </div>
     </div>
 
   {% else %}
-    <!-- Estado vacío con diseño atractivo -->
+    <!-- Estado vacío -->
     <div class="bg-dark-800 border border-dark-700 rounded-2xl p-12 text-center">
       <div class="max-w-md mx-auto">
-        <!-- Icono grande -->
         <div class="w-32 h-32 mx-auto mb-6 bg-gradient-to-br from-olive-800 to-olive-700 rounded-full 
                     flex items-center justify-center shadow-2xl">
           <i class="fas fa-dog text-white text-5xl"></i>
@@ -235,7 +226,6 @@
           Start by adding your first pet to keep track of their health and appointments.
         </p>
 
-        <!-- Beneficios -->
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 text-left">
           <div class="flex items-start space-x-3">
             <div class="w-8 h-8 bg-olive-700 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
@@ -281,21 +271,16 @@
 
 </div>
 
-<!-- Script para búsqueda y animaciones -->
 <script>
-  // Variables globales
   let allCards = [];
   
-  // Inicializar al cargar
   document.addEventListener('DOMContentLoaded', function() {
     allCards = Array.from(document.querySelectorAll('.pet-card'));
     
-    // Animación de entrada para las cards
     const cards = document.querySelectorAll('.pet-card');
     cards.forEach((card, index) => {
       card.style.opacity = '0';
       card.style.transform = 'translateY(20px)';
-      
       setTimeout(() => {
         card.style.transition = 'all 0.5s ease-in-out';
         card.style.opacity = '1';
@@ -304,11 +289,9 @@
     });
   });
 
-  // Función principal de búsqueda
   function searchPets() {
     const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
     const speciesFilter = document.getElementById('speciesFilter').value.toLowerCase();
-    
     let visibleCount = 0;
 
     allCards.forEach(card => {
@@ -316,40 +299,22 @@
       const species = card.dataset.species || '';
       const breed = card.dataset.breed || '';
 
-      // Búsqueda en todos los campos
       const matchesSearch = !searchTerm || 
-        name.includes(searchTerm) ||
-        species.includes(searchTerm) ||
-        breed.includes(searchTerm);
+        name.includes(searchTerm) || species.includes(searchTerm) || breed.includes(searchTerm);
 
-      // Filtro por especie
-      const matchesSpecies = !speciesFilter || 
-        species.includes(speciesFilter) ||
-        (speciesFilter === 'dog' && (species.includes('perro') || species.includes('dog'))) ||
-        (speciesFilter === 'cat' && (species.includes('gato') || species.includes('cat'))) ||
-        (speciesFilter === 'rabbit' && (species.includes('conejo') || species.includes('rabbit')));
+      const matchesSpecies = !speciesFilter || species.includes(speciesFilter);
 
-      // Mostrar/ocultar card
       if (matchesSearch && matchesSpecies) {
         card.style.display = '';
         visibleCount++;
-        
-        // Highlight de texto encontrado
-        if (searchTerm) {
-          highlightText(card, searchTerm);
-        } else {
-          removeHighlight(card);
-        }
       } else {
         card.style.display = 'none';
       }
     });
 
-    // Actualizar contador
     document.getElementById('resultCount').textContent = visibleCount;
     document.getElementById('totalPets').textContent = visibleCount;
 
-    // Mostrar/ocultar mensaje de "no results"
     const noResults = document.getElementById('noResults');
     const grid = document.getElementById('petsGrid');
     
@@ -362,89 +327,17 @@
     }
   }
 
-  // Resaltar texto encontrado
-  function highlightText(card, searchTerm) {
-    const textElements = card.querySelectorAll('.pet-name, .pet-species, .pet-breed');
-    
-    textElements.forEach(element => {
-      const originalText = element.textContent;
-      const lowerText = originalText.toLowerCase();
-      const index = lowerText.indexOf(searchTerm);
-      
-      if (index !== -1) {
-        const before = originalText.substring(0, index);
-        const match = originalText.substring(index, index + searchTerm.length);
-        const after = originalText.substring(index + searchTerm.length);
-        
-        element.innerHTML = `${before}<mark class="bg-olive-600 text-white px-1 rounded">${match}</mark>${after}`;
-      }
-    });
-  }
-
-  // Remover resaltado
-  function removeHighlight(card) {
-    const textElements = card.querySelectorAll('.pet-name, .pet-species, .pet-breed');
-    textElements.forEach(element => {
-      element.innerHTML = element.textContent;
-    });
-  }
-
-  // Limpiar búsqueda
   function clearSearch() {
     document.getElementById('searchInput').value = '';
     document.getElementById('speciesFilter').value = '';
     searchPets();
   }
 
-  // Búsqueda en tiempo real con debounce
   let searchTimeout;
   document.getElementById('searchInput').addEventListener('input', function() {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(searchPets, 300);
   });
-
-  // Enter key para buscar
-  document.getElementById('searchInput').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-      clearTimeout(searchTimeout);
-      searchPets();
-    }
-  });
-
-  // Keyboard shortcuts
-  document.addEventListener('keydown', function(e) {
-    // Ctrl/Cmd + K para focus en búsqueda
-    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-      e.preventDefault();
-      document.getElementById('searchInput').focus();
-    }
-    
-    // Escape para limpiar búsqueda
-    if (e.key === 'Escape') {
-      clearSearch();
-      document.getElementById('searchInput').blur();
-    }
-  });
 </script>
-
-<!-- Estilos adicionales -->
-<style>
-  mark {
-    animation: highlight 0.3s ease-in-out;
-  }
-
-  @keyframes highlight {
-    from {
-      background-color: transparent;
-    }
-    to {
-      background-color: #6B8E23;
-    }
-  }
-
-  .pet-card {
-    transition: all 0.3s ease-in-out;
-  }
-</style>
 
 {% endblock %}
