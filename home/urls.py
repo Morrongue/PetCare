@@ -30,6 +30,7 @@ urlpatterns = [
     path('appointments/add/', views.add_cita, name='add_cita'),
     path('appointments/edit/<str:id>/', views.edit_cita, name='edit_cita'),
     path('citas/cancel/<str:id>/', views.cancel_cita, name='cancel_cita'), 
+    path('citas/add-observation/<str:id>/', views.add_observation, name='add_observation'),
 
     # Panel de administrador
     path("panel/users/", views.admin_users_list, name="admin_users_list"),
@@ -37,4 +38,15 @@ urlpatterns = [
     path("panel/users/edit/<str:id>/", views.admin_users_edit, name="admin_users_edit"),
     path("panel/users/delete/<str:id>/", views.admin_users_delete, name="admin_users_delete"),
     path("panel/users/reset/<str:id>/", views.admin_users_reset_password, name="admin_users_reset_password"),
+
+    # Listar historias clínicas
+    path('historias/', views.list_historias, name='list_historias'),
+    # Ver detalle de una historia clínica
+    path('historias/view/<str:id>/', views.view_historia, name='view_historia'),
+    # Crear nueva historia clínica
+    path('historias/add/', views.add_historia, name='add_historia'),
+    # Editar historia clínica existente
+    path('historias/edit/<str:id>/', views.edit_historia, name='edit_historia'),
+    # Eliminar historia clínica (solo administradores)
+    path('historias/delete/<str:id>/', views.delete_historia, name='delete_historia'),
 ]

@@ -247,8 +247,28 @@
                           <i class="fas fa-ban mr-1"></i>Cancel
                         </button>
                       {% endif %}
+
+                      <!-- Botón para añadir observación (solo veterinarios) -->
+                      {% if c.puede_agregar_observacion %}
+                        <button onclick="openObservationModal('{{ c.id_str }}', '{{ c.mascota_nombre|escapejs }}')"
+                                class="bg-blue-900/50 hover:bg-blue-900 text-blue-300 hover:text-white px-3 py-1.5 rounded-lg
+                                       transition-colors text-sm font-medium border border-blue-700 inline-flex items-center"
+                                title="Add observation">
+                          <i class="fas fa-notes-medical mr-1"></i>Note
+                        </button>
+                      {% endif %}
+
+                      <!-- Botón para ver observación (todos pueden ver si existe) -->
+                      {% if c.observacion %}
+                        <button onclick="viewObservation('{{ c.mascota_nombre|escapejs }}', '{{ c.observacion|escapejs }}', '{{ c.fecha_observacion|default:""|escapejs }}')"
+                                class="bg-cyan-900/50 hover:bg-cyan-900 text-cyan-300 hover:text-white px-3 py-1.5 rounded-lg
+                                       transition-colors text-sm font-medium border border-cyan-700 inline-flex items-center"
+                                title="View observation">
+                          <i class="fas fa-eye mr-1"></i>View
+                        </button>
+                      {% endif %}
                       
-                      {% if c.estado != 'Pendiente' %}
+                      {% if c.estado != 'Pendiente' and not c.puede_agregar_observacion %}
                         <span class="text-gray-500 text-xs italic">
                           {% if c.estado == 'Completada' %}<i class="fas fa-check-circle text-green-500 mr-1"></i>Completed
                           {% elif c.estado == 'Cancelada' %}<i class="fas fa-ban text-red-500 mr-1"></i>Cancelled{% endif %}
@@ -339,6 +359,24 @@
                   <i class="fas fa-ban"></i>
                 </button>
               {% endif %}
+
+              <!-- Botón para añadir observación (solo veterinarios en móvil) -->
+              {% if c.puede_agregar_observacion %}
+                <button onclick="openObservationModal('{{ c.id_str }}', '{{ c.mascota_nombre|escapejs }}')"
+                        class="bg-blue-900/50 hover:bg-blue-900 text-blue-300 px-3 py-1.5 rounded-lg
+                               transition-colors text-xs font-medium border border-blue-700">
+                  <i class="fas fa-notes-medical"></i>
+                </button>
+              {% endif %}
+
+              <!-- Botón para ver observación (móvil) -->
+              {% if c.observacion %}
+                <button onclick="viewObservation('{{ c.mascota_nombre|escapejs }}', '{{ c.observacion|escapejs }}', '{{ c.fecha_observacion|default:""|escapejs }}')"
+                        class="bg-cyan-900/50 hover:bg-cyan-900 text-cyan-300 px-3 py-1.5 rounded-lg
+                               transition-colors text-xs font-medium border border-cyan-700">
+                  <i class="fas fa-eye"></i>
+                </button>
+              {% endif %}
             {% endif %}
           </div>
         </div>
@@ -403,7 +441,7 @@
       <p class="text-gray-500 text-sm mb-6 text-center">This action cannot be undone.</p>
 
       <div class="flex space-x-3">
-        <button onclick="closeModal()"
+        <button onclick="closeModal('cancelModal')"
                 class="flex-1 bg-dark-900 hover:bg-dark-700 text-gray-300 hover:text-white py-3 rounded-lg
                        transition-colors font-medium border border-dark-600">
           <i class="fas fa-times mr-2"></i>No, Keep It
@@ -418,8 +456,110 @@
   </div>
 </div>
 
+<!-- Modal de Observaciones (Añadir) -->
+<div id="observationModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-dark-800 border border-dark-700 rounded-2xl max-w-2xl w-full shadow-2xl transform transition-all scale-95"
+       onclick="event.stopPropagation()">
+    
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center space-x-3">
+          <div class="w-12 h-12 bg-blue-900/30 rounded-full flex items-center justify-center">
+            <i class="fas fa-notes-medical text-blue-400 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-white">Add Observation</h3>
+            <p class="text-gray-400 text-sm">For <span id="observationPetName" class="text-white font-medium"></span></p>
+          </div>
+        </div>
+        <button onclick="closeModal('observationModal')" class="text-gray-400 hover:text-white transition-colors">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+
+      <form id="observationForm" method="POST" action="">
+        {% csrf_token %}
+        <div class="mb-4">
+          <label for="observationText" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-clipboard-list text-olive-500 mr-2"></i>Observation Notes
+          </label>
+          <textarea 
+            id="observationText" 
+            name="observacion" 
+            rows="6"
+            placeholder="Enter medical observations, diagnosis, treatment plan, or any relevant notes..."
+            class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                   focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent
+                   placeholder-gray-500 resize-none"
+            required
+          ></textarea>
+          <p class="text-gray-500 text-xs mt-1">
+            <i class="fas fa-info-circle mr-1"></i>Be detailed and professional. This will be visible to the pet owner.
+          </p>
+        </div>
+
+        <div class="flex space-x-3">
+          <button type="button" onclick="closeModal('observationModal')"
+                  class="flex-1 bg-dark-900 hover:bg-dark-700 text-gray-300 hover:text-white py-3 rounded-lg
+                         transition-colors font-medium border border-dark-600">
+            <i class="fas fa-times mr-2"></i>Cancel
+          </button>
+          <button type="submit"
+                  class="flex-1 bg-blue-700 hover:bg-blue-600 text-white py-3 rounded-lg
+                         transition-colors font-medium">
+            <i class="fas fa-save mr-2"></i>Save Observation
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de Ver Observaciones -->
+<div id="viewObservationModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-dark-800 border border-dark-700 rounded-2xl max-w-2xl w-full shadow-2xl transform transition-all scale-95"
+       onclick="event.stopPropagation()">
+    
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center space-x-3">
+          <div class="w-12 h-12 bg-cyan-900/30 rounded-full flex items-center justify-center">
+            <i class="fas fa-file-medical text-cyan-400 text-xl"></i>
+          </div>
+          <div>
+            <h3 class="text-xl font-bold text-white">Medical Observation</h3>
+            <p class="text-gray-400 text-sm">For <span id="viewObservationPetName" class="text-white font-medium"></span></p>
+          </div>
+        </div>
+        <button onclick="closeModal('viewObservationModal')" class="text-gray-400 hover:text-white transition-colors">
+          <i class="fas fa-times text-xl"></i>
+        </button>
+      </div>
+
+      <div class="bg-dark-900 border border-dark-600 rounded-lg p-4 mb-4">
+        <div class="flex items-center text-gray-400 text-sm mb-3">
+          <i class="fas fa-calendar-alt text-olive-500 mr-2"></i>
+          <span id="viewObservationDate">-</span>
+        </div>
+        <div class="text-gray-300 whitespace-pre-wrap" id="viewObservationText">
+          <!-- El contenido de la observación se cargará aquí -->
+        </div>
+      </div>
+
+      <div class="flex justify-end">
+        <button onclick="closeModal('viewObservationModal')"
+                class="bg-dark-900 hover:bg-dark-700 text-gray-300 hover:text-white px-6 py-3 rounded-lg
+                       transition-colors font-medium border border-dark-600">
+          <i class="fas fa-times mr-2"></i>Close
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
   let appointmentToCancel = null;
+  let appointmentForObservation = null;
   let allRows = [];
   let allMobileCards = [];
 
@@ -429,15 +569,34 @@
     
     sortAppointments();
 
-    const modal = document.getElementById('cancelModal');
-    if (modal) {
-      modal.addEventListener('click', function(e) {
-        if (e.target === this) closeModal();
+    const cancelModal = document.getElementById('cancelModal');
+    const observationModal = document.getElementById('observationModal');
+    const viewObservationModal = document.getElementById('viewObservationModal');
+    
+    if (cancelModal) {
+      cancelModal.addEventListener('click', function(e) {
+        if (e.target === this) closeModal('cancelModal');
+      });
+    }
+
+    if (observationModal) {
+      observationModal.addEventListener('click', function(e) {
+        if (e.target === this) closeModal('observationModal');
+      });
+    }
+
+    if (viewObservationModal) {
+      viewObservationModal.addEventListener('click', function(e) {
+        if (e.target === this) closeModal('viewObservationModal');
       });
     }
 
     document.addEventListener('keydown', function(e) {
-      if (e.key === 'Escape') closeModal();
+      if (e.key === 'Escape') {
+        closeModal('cancelModal');
+        closeModal('observationModal');
+        closeModal('viewObservationModal');
+      }
     });
   });
 
@@ -552,8 +711,30 @@
   function confirmCancel(appointmentId, petName) {
     appointmentToCancel = appointmentId;
     document.getElementById('cancelPetName').textContent = petName;
+    openModal('cancelModal');
+  }
+
+  function openObservationModal(appointmentId, petName) {
+    appointmentForObservation = appointmentId;
+    document.getElementById('observationPetName').textContent = petName;
+    document.getElementById('observationText').value = '';
     
-    const modal = document.getElementById('cancelModal');
+    // Actualizar el action del formulario
+    const form = document.getElementById('observationForm');
+    form.action = `/citas/add-observation/${appointmentId}/`;
+    
+    openModal('observationModal');
+  }
+
+  function viewObservation(petName, observation, date) {
+    document.getElementById('viewObservationPetName').textContent = petName;
+    document.getElementById('viewObservationText').textContent = observation;
+    document.getElementById('viewObservationDate').textContent = date || 'No date recorded';
+    openModal('viewObservationModal');
+  }
+
+  function openModal(modalId) {
+    const modal = document.getElementById(modalId);
     modal.classList.remove('hidden');
     setTimeout(() => {
       modal.querySelector('div > div').classList.remove('scale-95');
@@ -561,13 +742,17 @@
     }, 10);
   }
 
-  function closeModal() {
-    const modal = document.getElementById('cancelModal');
+  function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
     modal.querySelector('div > div').classList.remove('scale-100');
     modal.querySelector('div > div').classList.add('scale-95');
     setTimeout(() => {
       modal.classList.add('hidden');
-      appointmentToCancel = null;
+      if (modalId === 'cancelModal') {
+        appointmentToCancel = null;
+      } else if (modalId === 'observationModal') {
+        appointmentForObservation = null;
+      }
     }, 200);
   }
 

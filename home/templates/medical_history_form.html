@@ -1,0 +1,544 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+  
+  <!-- Header -->
+  <div class="mb-6">
+    <div class="flex items-center space-x-3 mb-2">
+      <a href="{% url 'list_historias' %}" 
+         class="text-gray-400 hover:text-white transition-colors">
+        <i class="fas fa-arrow-left text-xl"></i>
+      </a>
+      <h1 class="text-2xl sm:text-3xl font-bold text-white flex items-center">
+        <i class="fas fa-file-medical text-olive-500 mr-3"></i>
+        {% if action == 'Add' %}New Medical Record{% else %}Edit Medical Record{% endif %}
+      </h1>
+    </div>
+    <p class="text-gray-400 ml-12 text-sm sm:text-base">
+      {% if action == 'Add' %}
+        Create a comprehensive medical history record
+      {% else %}
+        Update medical history information
+      {% endif %}
+    </p>
+  </div>
+
+  <!-- Mensajes -->
+  {% if messages %}
+    {% for message in messages %}
+      <div class="mb-6 p-4 rounded-lg {% if message.tags == 'success' %}bg-green-900/30 border border-green-700 text-green-300{% else %}bg-red-900/30 border border-red-700 text-red-300{% endif %}">
+        <i class="fas {% if message.tags == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %} mr-2"></i>
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="POST" class="space-y-6">
+    {% csrf_token %}
+
+    <!-- Sección 1: Información Básica -->
+    <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+      <div class="flex items-center space-x-3 mb-6 pb-4 border-b border-dark-700">
+        <div class="w-10 h-10 bg-olive-700 rounded-lg flex items-center justify-center">
+          <i class="fas fa-info-circle text-white"></i>
+        </div>
+        <h2 class="text-xl font-bold text-white">Basic Information</h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="id_paciente" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-paw text-olive-500 mr-2"></i>Patient (Pet) *
+          </label>
+          <select id="id_paciente" 
+                  name="id_paciente" 
+                  required
+                  onchange="loadPetData()"
+                  class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                         focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent">
+            <option value="">Select a pet...</option>
+            {% for mascota in mascotas %}
+              <option value="{{ mascota.id_str }}" 
+                      {% if historia and historia.id_paciente == mascota.id_str %}selected{% endif %}
+                      data-nombre="{{ mascota.nombre }}"
+                      data-especie="{{ mascota.especie }}"
+                      data-raza="{{ mascota.raza }}"
+                      data-sexo="{{ mascota.sexo }}"
+                      data-fecha-nacimiento="{{ mascota.fecha_nacimiento }}"
+                      data-peso="{{ mascota.peso }}"
+                      data-color="{{ mascota.color }}">
+                {{ mascota.display_name }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label for="hc_numero" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-hashtag text-olive-500 mr-2"></i>Medical Record Number
+          </label>
+          <input type="text" 
+                 id="hc_numero" 
+                 name="hc_numero"
+                 value="{% if historia %}{{ historia.hc_numero }}{% endif %}"
+                 placeholder="e.g., 2024-001"
+                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                        placeholder-gray-500">
+        </div>
+
+        <div>
+          <label for="fecha" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-calendar text-olive-500 mr-2"></i>Date *
+          </label>
+          <input type="date" 
+                 id="fecha" 
+                 name="fecha"
+                 value="{% if historia %}{{ historia.fecha }}{% endif %}"
+                 required
+                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent">
+        </div>
+
+        <div>
+          <label for="hora" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-clock text-olive-500 mr-2"></i>Time
+          </label>
+          <input type="time" 
+                 id="hora" 
+                 name="hora"
+                 value="{% if historia %}{{ historia.hora }}{% endif %}"
+                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent">
+        </div>
+      </div>
+    </div>
+
+    <!-- Sección 2: Datos del Propietario -->
+    <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+      <div class="flex items-center space-x-3 mb-6 pb-4 border-b border-dark-700">
+        <div class="w-10 h-10 bg-blue-700 rounded-lg flex items-center justify-center">
+          <i class="fas fa-user text-white"></i>
+        </div>
+        <h2 class="text-xl font-bold text-white">Owner Information</h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="md:col-span-2">
+          <label for="propietario_nombre" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-id-card text-olive-500 mr-2"></i>Full Name *
+          </label>
+          <input type="text" 
+                 id="propietario_nombre" 
+                 name="propietario_nombre"
+                 value="{% if historia %}{{ historia.propietario_nombre }}{% endif %}"
+                 required
+                 placeholder="Owner's full name"
+                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                        placeholder-gray-500">
+        </div>
+
+        <div>
+          <label for="propietario_documento_tipo" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-address-card text-olive-500 mr-2"></i>ID Type
+          </label>
+          <select id="propietario_documento_tipo" 
+                  name="propietario_documento_tipo"
+                  class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                         focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent">
+            <option value="">Select type...</option>
+            <option value="CC" {% if historia and historia.propietario_documento_tipo == 'CC' %}selected{% endif %}>Citizenship Card</option>
+            <option value="CE" {% if historia and historia.propietario_documento_tipo == 'CE' %}selected{% endif %}>Foreign ID</option>
+            <option value="TI" {% if historia and historia.propietario_documento_tipo == 'TI' %}selected{% endif %}>Identity Card</option>
+            <option value="Passport" {% if historia and historia.propietario_documento_tipo == 'Passport' %}selected{% endif %}>Passport</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="propietario_documento_numero" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-fingerprint text-olive-500 mr-2"></i>ID Number
+          </label>
+          <input type="text" 
+                 id="propietario_documento_numero" 
+                 name="propietario_documento_numero"
+                 value="{% if historia %}{{ historia.propietario_documento_numero }}{% endif %}"
+                 placeholder="ID number"
+                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                        placeholder-gray-500">
+        </div>
+
+        <div class="md:col-span-2">
+          <label for="propietario_direccion" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-map-marker-alt text-olive-500 mr-2"></i>Address
+          </label>
+          <input type="text" 
+                 id="propietario_direccion" 
+                 name="propietario_direccion"
+                 value="{% if historia %}{{ historia.propietario_direccion }}{% endif %}"
+                 placeholder="Full address"
+                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                        placeholder-gray-500">
+        </div>
+
+        <div>
+          <label for="propietario_telefono_fijo" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-phone text-olive-500 mr-2"></i>Phone
+          </label>
+          <input type="tel" 
+                 id="propietario_telefono_fijo" 
+                 name="propietario_telefono_fijo"
+                 value="{% if historia %}{{ historia.propietario_telefono_fijo }}{% endif %}"
+                 placeholder="Landline"
+                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                        placeholder-gray-500">
+        </div>
+
+        <div>
+          <label for="propietario_telefono_celular" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-mobile-alt text-olive-500 mr-2"></i>Mobile
+          </label>
+          <input type="tel" 
+                 id="propietario_telefono_celular" 
+                 name="propietario_telefono_celular"
+                 value="{% if historia %}{{ historia.propietario_telefono_celular }}{% endif %}"
+                 placeholder="Mobile phone"
+                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                        placeholder-gray-500">
+        </div>
+
+        <div class="md:col-span-2">
+          <label for="propietario_email" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-envelope text-olive-500 mr-2"></i>Email
+          </label>
+          <input type="email" 
+                 id="propietario_email" 
+                 name="propietario_email"
+                 value="{% if historia %}{{ historia.propietario_email }}{% endif %}"
+                 placeholder="email@example.com"
+                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                        placeholder-gray-500">
+        </div>
+
+        <div class="md:col-span-2">
+          <label class="flex items-center space-x-3 cursor-pointer">
+            <input type="checkbox" 
+                   id="propietario_responsable" 
+                   name="propietario_responsable"
+                   {% if historia and historia.propietario_responsable %}checked{% endif %}
+                   class="w-5 h-5 bg-dark-900 border border-dark-600 rounded text-olive-600
+                          focus:ring-2 focus:ring-olive-600 focus:ring-offset-0 focus:ring-offset-dark-800">
+            <span class="text-gray-300">
+              <i class="fas fa-check-circle text-olive-500 mr-2"></i>
+              I am the legal responsible for this pet
+            </span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sección 3: Reseña del Paciente -->
+    <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+      <div class="flex items-center space-x-3 mb-6 pb-4 border-b border-dark-700">
+        <div class="w-10 h-10 bg-purple-700 rounded-lg flex items-center justify-center">
+          <i class="fas fa-paw text-white"></i>
+        </div>
+        <h2 class="text-xl font-bold text-white">Patient Details</h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="paciente_nombre" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-tag text-olive-500 mr-2"></i>Pet Name *
+          </label>
+          <input type="text" 
+                 id="paciente_nombre" 
+                 name="paciente_nombre"
+                 value="{% if historia %}{{ historia.paciente_nombre }}{% endif %}"
+                 required
+                 placeholder="Pet's name"
+                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                        placeholder-gray-500">
+        </div>
+
+        <div>
+          <label for="paciente_especie" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-dna text-olive-500 mr-2"></i>Species *
+          </label>
+          <input type="text" 
+                 id="paciente_especie" 
+                 name="paciente_especie"
+                 value="{% if historia %}{{ historia.paciente_especie }}{% endif %}"
+                 required
+                 placeholder="e.g., Dog, Cat, Bird"
+                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                        placeholder-gray-500">
+        </div>
+
+        <div>
+          <label for="paciente_raza" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-dog text-olive-500 mr-2"></i>Breed
+          </label>
+          <input type="text" 
+                 id="paciente_raza" 
+                 name="paciente_raza"
+                 value="{% if historia %}{{ historia.paciente_raza }}{% endif %}"
+                 placeholder="Breed or mixed"
+                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                        placeholder-gray-500">
+        </div>
+
+        <div>
+          <label for="paciente_sexo" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-venus-mars text-olive-500 mr-2"></i>Sex
+          </label>
+          <select id="paciente_sexo" 
+                  name="paciente_sexo"
+                  class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                         focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent">
+            <option value="">Select...</option>
+            <option value="Male" {% if historia and historia.paciente_sexo == 'Male' %}selected{% endif %}>Male</option>
+            <option value="Female" {% if historia and historia.paciente_sexo == 'Female' %}selected{% endif %}>Female</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="paciente_fecha_nacimiento" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-birthday-cake text-olive-500 mr-2"></i>Date of Birth
+          </label>
+          <input type="date" 
+                 id="paciente_fecha_nacimiento" 
+                 name="paciente_fecha_nacimiento"
+                 value="{% if historia %}{{ historia.paciente_fecha_nacimiento }}{% endif %}"
+                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent">
+        </div>
+
+        <div>
+          <label for="paciente_peso" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-weight text-olive-500 mr-2"></i>Weight (kg)
+          </label>
+          <input type="number" 
+                 id="paciente_peso" 
+                 name="paciente_peso"
+                 value="{% if historia %}{{ historia.paciente_peso }}{% endif %}"
+                 step="0.1"
+                 placeholder="Weight in kg"
+                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                        placeholder-gray-500">
+        </div>
+
+        <div>
+          <label for="paciente_color" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-palette text-olive-500 mr-2"></i>Color
+          </label>
+          <input type="text" 
+                 id="paciente_color" 
+                 name="paciente_color"
+                 value="{% if historia %}{{ historia.paciente_color }}{% endif %}"
+                 placeholder="Fur/feather color"
+                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                        placeholder-gray-500">
+        </div>
+
+        <div>
+          <label for="paciente_chip" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-microchip text-olive-500 mr-2"></i>Microchip Number
+          </label>
+          <input type="text" 
+                 id="paciente_chip" 
+                 name="paciente_chip"
+                 value="{% if historia %}{{ historia.paciente_chip }}{% endif %}"
+                 placeholder="Microchip ID"
+                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                        placeholder-gray-500">
+        </div>
+
+        <div>
+          <label for="paciente_otras_identificaciones" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-barcode text-olive-500 mr-2"></i>Other IDs
+          </label>
+          <input type="text" 
+                 id="paciente_otras_identificaciones" 
+                 name="paciente_otras_identificaciones"
+                 value="{% if historia %}{{ historia.paciente_otras_identificaciones }}{% endif %}"
+                 placeholder="Tattoos, tags, etc."
+                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                        placeholder-gray-500">
+        </div>
+
+        <div>
+          <label for="paciente_fin_zootecnico" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-trophy text-olive-500 mr-2"></i>Purpose
+          </label>
+          <input type="text" 
+                 id="paciente_fin_zootecnico" 
+                 name="paciente_fin_zootecnico"
+                 value="{% if historia %}{{ historia.paciente_fin_zootecnico }}{% endif %}"
+                 placeholder="Pet, breeding, show, etc."
+                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                        placeholder-gray-500">
+        </div>
+
+        <div>
+          <label for="paciente_origen" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-map-marked-alt text-olive-500 mr-2"></i>Origin
+          </label>
+          <input type="text" 
+                 id="paciente_origen" 
+                 name="paciente_origen"
+                 value="{% if historia %}{{ historia.paciente_origen }}{% endif %}"
+                 placeholder="Where the pet came from"
+                 class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                        focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                        placeholder-gray-500">
+        </div>
+      </div>
+    </div>
+
+    <!-- Sección 4: Anamnesis -->
+    <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+      <div class="flex items-center space-x-3 mb-6 pb-4 border-b border-dark-700">
+        <div class="w-10 h-10 bg-green-700 rounded-lg flex items-center justify-center">
+          <i class="fas fa-notes-medical text-white"></i>
+        </div>
+        <h2 class="text-xl font-bold text-white">Medical History (Anamnesis)</h2>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label for="anamnesis_dieta" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-utensils text-olive-500 mr-2"></i>Diet
+          </label>
+          <textarea id="anamnesis_dieta" 
+                    name="anamnesis_dieta"
+                    rows="2"
+                    placeholder="Current diet and feeding schedule..."
+                    class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                           focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                           placeholder-gray-500 resize-none">{% if historia %}{{ historia.anamnesis_dieta }}{% endif %}</textarea>
+        </div>
+
+        <div>
+          <label for="anamnesis_enfermedades_previas" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-disease text-olive-500 mr-2"></i>Previous Diseases
+          </label>
+          <textarea id="anamnesis_enfermedades_previas" 
+                    name="anamnesis_enfermedades_previas"
+                    rows="3"
+                    placeholder="History of previous illnesses, conditions, or diseases..."
+                    class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                           focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                           placeholder-gray-500 resize-none">{% if historia %}{{ historia.anamnesis_enfermedades_previas }}{% endif %}</textarea>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label for="anamnesis_esterilizado" class="block text-gray-300 mb-2 font-medium">
+              <i class="fas fa-cut text-olive-500 mr-2"></i>Sterilized/Neutered
+            </label>
+            <select id="anamnesis_esterilizado" 
+                    name="anamnesis_esterilizado"
+                    class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                           focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent">
+              <option value="">Select...</option>
+              <option value="Yes" {% if historia and historia.anamnesis_esterilizado == 'Yes' %}selected{% endif %}>Yes</option>
+              <option value="No" {% if historia and historia.anamnesis_esterilizado == 'No' %}selected{% endif %}>No</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="anamnesis_num_partos" class="block text-gray-300 mb-2 font-medium">
+              <i class="fas fa-baby text-olive-500 mr-2"></i>Number of Births (if female)
+            </label>
+            <input type="number" 
+                   id="anamnesis_num_partos" 
+                   name="anamnesis_num_partos"
+                   value="{% if historia %}{{ historia.anamnesis_num_partos }}{% endif %}"
+                   min="0"
+                   placeholder="0"
+                   class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                          focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                          placeholder-gray-500">
+          </div>
+        </div>
+
+        <div>
+          <label for="anamnesis_cirugias_previas" class="block text-gray-300 mb-2 font-medium">
+            <i class="fas fa-briefcase-medical text-olive-500 mr-2"></i>Previous Surgeries
+          </label>
+          <textarea id="anamnesis_cirugias_previas" 
+                    name="anamnesis_cirugias_previas"
+                    rows="3"
+                    placeholder="List of previous surgical procedures, dates, and outcomes..."
+                    class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                           focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                           placeholder-gray-500 resize-none">{% if historia %}{{ historia.anamnesis_cirugias_previas }}{% endif %}</textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="flex flex-col sm:flex-row gap-3 justify-end">
+      <a href="{% url 'list_historias' %}" 
+         class="inline-flex items-center justify-center space-x-2 bg-dark-900 hover:bg-dark-700 
+                text-gray-300 hover:text-white font-semibold px-6 py-3 rounded-lg
+                border border-dark-600 hover:border-olive-600 transition-all">
+        <i class="fas fa-times"></i>
+        <span>Cancel</span>
+      </a>
+      
+      <button type="submit"
+              class="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-olive-700 to-olive-600 
+                     hover:from-olive-600 hover:to-olive-500 text-white font-semibold px-8 py-3 rounded-lg
+                     transform hover:scale-105 transition-all shadow-lg hover:shadow-olive-500/50">
+        <i class="fas fa-save"></i>
+        <span>{% if action == 'Add' %}Create Record{% else %}Save Changes{% endif %}</span>
+      </button>
+    </div>
+
+  </form>
+</div>
+
+<script>
+  // Auto-fill pet data when selecting a pet
+  function loadPetData() {
+    const select = document.getElementById('id_paciente');
+    const selectedOption = select.options[select.selectedIndex];
+    
+    if (selectedOption.value) {
+      // Fill patient fields
+      document.getElementById('paciente_nombre').value = selectedOption.dataset.nombre || '';
+      document.getElementById('paciente_especie').value = selectedOption.dataset.especie || '';
+      document.getElementById('paciente_raza').value = selectedOption.dataset.raza || '';
+      document.getElementById('paciente_sexo').value = selectedOption.dataset.sexo || '';
+      document.getElementById('paciente_fecha_nacimiento').value = selectedOption.dataset.fechaNacimiento || '';
+      document.getElementById('paciente_peso').value = selectedOption.dataset.peso || '';
+      document.getElementById('paciente_color').value = selectedOption.dataset.color || '';
+    }
+  }
+
+  // Set today's date as default if creating new record
+  {% if action == 'Add' %}
+  document.addEventListener('DOMContentLoaded', function() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('fecha').value = today;
+  });
+  {% endif %}
+</script>
+
+{% endblock %}

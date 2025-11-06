@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.contrib import messages
-from .models import users, pacientes, veterinarios, citas
+from .models import users, pacientes, veterinarios, citas, historia_clinica
 from collections import Counter
 from bson import ObjectId
 from datetime import datetime, timedelta
@@ -947,7 +947,6 @@ def delete_veterinario(request, id):
 
 
 
-# -------------------- FUNCIÓN AUXILIAR: ACTUALIZAR ESTADOS AUTOMÁTICAMENTE --------------------
 
 # -------------------- FUNCIÓN AUXILIAR: ACTUALIZAR ESTADOS AUTOMÁTICAMENTE --------------------
 def actualizar_estados_citas_automaticamente():
@@ -1062,6 +1061,7 @@ def list_citas(request):
         # Sistema de permisos
         c["puede_editar"] = False
         c["puede_cancelar"] = False
+        c["puede_agregar_observacion"] = False
         
         if rol == "Administrador":
             c["puede_editar"] = True
@@ -1071,8 +1071,20 @@ def list_citas(request):
                 c["puede_editar"] = True
                 c["puede_cancelar"] = True
         elif rol == "Veterinario":
-            if c.get("id_veterinario") == current_user_id and c.get("estado") == "Pendiente":
-                c["puede_editar"] = True
+            if c.get("id_veterinario") == current_user_id:
+                if c.get("estado") == "Pendiente":
+                    c["puede_editar"] = True
+                # ✅ El veterinario puede agregar observaciones en citas asignadas (Pendiente o Completada)
+                if c.get("estado") in ["Pendiente", "Completada"]:
+                    c["puede_agregar_observacion"] = True
+
+        # Formatear fecha de observación si existe
+        if c.get("fecha_observacion"):
+            try:
+                fecha_obs = datetime.strptime(c["fecha_observacion"], "%Y-%m-%dT%H:%M:%S")
+                c["fecha_observacion"] = fecha_obs.strftime("%B %d, %Y at %I:%M %p")
+            except:
+                pass
 
     return render(request, "appointments_list.html", {
         "citas": data,
@@ -1083,6 +1095,68 @@ def list_citas(request):
         "completadas": completadas,
         "canceladas": canceladas
     })
+
+
+# -------------------- AÑADIR OBSERVACIÓN --------------------
+def add_observation(request, id):
+    """Permite a un veterinario añadir observaciones a una cita."""
+    if "user" not in request.session:
+        messages.warning(request, "Please log in first.")
+        return redirect("login")
+    
+    rol = request.session.get("rol")
+    username = request.session.get("user")
+    
+    # Solo veterinarios pueden añadir observaciones
+    if rol != "Veterinario":
+        messages.error(request, "Only veterinarians can add observations.")
+        return redirect("list_citas")
+    
+    # Buscar la cita
+    cita = citas.find_one({"_id": ObjectId(id)})
+    if not cita:
+        messages.error(request, "Appointment not found.")
+        return redirect("list_citas")
+    
+    # Verificar que el veterinario esté asignado a esta cita
+    current_user = users.find_one({"User": username})
+    if not current_user:
+        messages.error(request, "User not found.")
+        return redirect("list_citas")
+    
+    current_user_id = str(current_user["_id"])
+    
+    if cita.get("id_veterinario") != current_user_id:
+        messages.error(request, "You can only add observations to your own appointments.")
+        return redirect("list_citas")
+    
+    # Solo se pueden agregar observaciones a citas Pendientes o Completadas
+    if cita.get("estado") not in ["Pendiente", "Completada"]:
+        messages.error(request, "Observations can only be added to pending or completed appointments.")
+        return redirect("list_citas")
+    
+    if request.method == "POST":
+        observacion = request.POST.get("observacion", "").strip()
+        
+        if not observacion:
+            messages.error(request, "Observation cannot be empty.")
+            return redirect("list_citas")
+        
+        # Actualizar la cita con la observación
+        citas.update_one(
+            {"_id": ObjectId(id)},
+            {"$set": {
+                "observacion": observacion,
+                "fecha_observacion": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                "veterinario_observacion": current_user_id
+            }}
+        )
+        
+        messages.success(request, "Observation added successfully.")
+        return redirect("list_citas")
+    
+    # Si no es POST, redirigir a la lista
+    return redirect("list_citas")
 
 
 # -------------------- CANCELAR CITA --------------------
@@ -1263,7 +1337,10 @@ def add_cita(request):
             "motivo": motivo,
             "estado": "Pendiente",
             "duracion": duracion,
-            "fecha_creacion": datetime.now().strftime("%Y-%m-%dT%H:%M")
+            "fecha_creacion": datetime.now().strftime("%Y-%m-%dT%H:%M"),
+            "observacion": "",  # ✅ Campo nuevo para observaciones
+            "fecha_observacion": "",
+            "veterinario_observacion": ""
         })
         messages.success(request, "Appointment successfully scheduled.")
         return redirect("list_citas")
@@ -1469,10 +1546,6 @@ def edit_cita(request, id):
         "rol": rol,
         "username": username
     })
-
-
-
-
 # ============================================
 # PANEL DE ADMINISTRADOR - USUARIOS
 # ============================================
@@ -2041,3 +2114,548 @@ def edit_profile(request):
         "user": user,
         "vet_data": vet_data
     })
+
+
+
+# -------------------- LISTAR HISTORIAS CLÍNICAS --------------------
+def list_historias(request):
+    """Lista historias clínicas según el rol del usuario."""
+    if "user" not in request.session:
+        messages.warning(request, "Please log in first.")
+        return redirect("login")
+
+    rol = request.session.get("rol")
+    username = request.session.get("user")
+    
+    current_user = users.find_one({"User": username})
+    if not current_user:
+        messages.error(request, "User not found.")
+        return redirect("index")
+    
+    current_user_id = str(current_user["_id"])
+    historias = []
+
+    if rol == "Administrador" or rol == "Veterinario":
+        # Admin y Veterinarios ven todas las historias
+        historias = list(historia_clinica.find())
+    elif rol == "Cliente":
+        # Clientes solo ven historias de sus mascotas
+        mascotas_ids = [str(m["_id"]) for m in pacientes.find({"id_user": current_user_id})]
+        historias = list(historia_clinica.find({"id_paciente": {"$in": mascotas_ids}}))
+
+    # Enriquecer datos
+    for h in historias:
+        h["id_str"] = str(h["_id"])
+        
+        # Obtener datos de la mascota
+        if h.get("id_paciente"):
+            mascota = pacientes.find_one({"_id": ObjectId(h["id_paciente"])})
+            if mascota:
+                h["mascota_nombre"] = mascota.get("nombre", "Unknown")
+                h["mascota_especie"] = mascota.get("especie", "Unknown")
+                h["mascota_raza"] = mascota.get("raza", "Unknown")
+                
+                # Obtener dueño
+                if mascota.get("id_user"):
+                    owner = users.find_one({"_id": ObjectId(mascota["id_user"])})
+                    h["propietario_nombre"] = owner.get("nombre", "Unknown") if owner else "Unknown"
+                else:
+                    h["propietario_nombre"] = "Unknown"
+
+        # Formatear fecha
+        if h.get("fecha"):
+            try:
+                fecha_obj = datetime.strptime(h["fecha"], "%Y-%m-%d")
+                h["fecha_formatted"] = fecha_obj.strftime("%B %d, %Y")
+            except:
+                h["fecha_formatted"] = h["fecha"]
+
+        # Permisos
+        h["puede_editar"] = False
+        h["puede_eliminar"] = False
+        
+        if rol == "Administrador":
+            h["puede_editar"] = True
+            h["puede_eliminar"] = True
+        elif rol == "Veterinario":
+            h["puede_editar"] = True
+
+    # Ordenar por fecha descendente
+    historias.sort(key=lambda x: x.get("fecha", "1970-01-01"), reverse=True)
+
+    return render(request, "medical_history_list.html", {
+        "historias": historias,
+        "rol": rol,
+        "username": username,
+        "total": len(historias)
+    })
+
+
+# -------------------- VER DETALLE DE HISTORIA CLÍNICA --------------------
+def view_historia(request, id):
+    """Muestra el detalle completo de una historia clínica."""
+    if "user" not in request.session:
+        messages.warning(request, "Please log in first.")
+        return redirect("login")
+
+    rol = request.session.get("rol")
+    username = request.session.get("user")
+    
+    historia = historia_clinica.find_one({"_id": ObjectId(id)})
+    if not historia:
+        messages.error(request, "Medical history not found.")
+        return redirect("list_historias")
+
+    # Verificar permisos
+    current_user = users.find_one({"User": username})
+    if not current_user:
+        messages.error(request, "User not found.")
+        return redirect("list_historias")
+    
+    current_user_id = str(current_user["_id"])
+
+    # Si es cliente, verificar que sea el dueño de la mascota
+    if rol == "Cliente":
+        mascota = pacientes.find_one({"_id": ObjectId(historia.get("id_paciente"))})
+        if not mascota or mascota.get("id_user") != current_user_id:
+            messages.error(request, "You don't have permission to view this medical history.")
+            return redirect("list_historias")
+
+    # Enriquecer datos
+    historia["id_str"] = str(historia["_id"])
+    
+    if historia.get("id_paciente"):
+        mascota = pacientes.find_one({"_id": ObjectId(historia["id_paciente"])})
+        if mascota:
+            historia["mascota"] = mascota
+            historia["mascota"]["id_str"] = str(mascota["_id"])
+            
+            if mascota.get("id_user"):
+                owner = users.find_one({"_id": ObjectId(mascota["id_user"])})
+                if owner:
+                    historia["propietario"] = owner
+
+    # Formatear fecha
+    if historia.get("fecha"):
+        try:
+            fecha_obj = datetime.strptime(historia["fecha"], "%Y-%m-%d")
+            historia["fecha_formatted"] = fecha_obj.strftime("%B %d, %Y")
+        except:
+            historia["fecha_formatted"] = historia["fecha"]
+
+    # Permisos
+    puede_editar = rol in ["Administrador", "Veterinario"]
+    puede_eliminar = rol == "Administrador"
+
+    return render(request, "medical_history_detail.html", {
+        "historia": historia,
+        "rol": rol,
+        "username": username,
+        "puede_editar": puede_editar,
+        "puede_eliminar": puede_eliminar
+    })
+
+# -------------------- CREAR HISTORIA CLÍNICA (CORREGIDO) --------------------
+def add_historia(request):
+    """Crea una nueva historia clínica."""
+    if "user" not in request.session:
+        messages.warning(request, "Please log in first.")
+        return redirect("login")
+
+    rol = request.session.get("rol")
+    username = request.session.get("user")
+    
+    # Solo Veterinarios y Administradores pueden crear historias
+    if rol not in ["Veterinario", "Administrador"]:
+        messages.error(request, "You don't have permission to create medical histories.")
+        return redirect("list_historias")
+
+    current_user = users.find_one({"User": username})
+    if not current_user:
+        messages.error(request, "User not found.")
+        return redirect("list_historias")
+    
+    current_user_id = str(current_user["_id"])
+
+    # ✅ CORRECCIÓN: Obtener todas las mascotas con el nombre correcto del dueño
+    mascotas = []
+    for m in pacientes.find():
+        m["id_str"] = str(m["_id"])
+        
+        # Buscar el dueño correctamente
+        if m.get("id_user"):
+            owner = users.find_one({"_id": ObjectId(m["id_user"])})
+            if owner:
+                # ✅ Usar el campo 'nombre' en lugar de 'User'
+                m["owner_name"] = owner.get("nombre", owner.get("User", "Unknown"))
+            else:
+                m["owner_name"] = "Unknown"
+        else:
+            m["owner_name"] = "Unknown"
+        
+        # Crear display_name con el nombre correcto del dueño
+        m["display_name"] = f"{m.get('nombre', 'Unknown')} ({m.get('especie', 'Unknown')}) - Owner: {m['owner_name']}"
+        mascotas.append(m)
+
+    if request.method == "POST":
+        # Datos básicos
+        id_paciente = request.POST.get("id_paciente")
+        hc_numero = request.POST.get("hc_numero")
+        fecha = request.POST.get("fecha")
+        hora = request.POST.get("hora")
+        
+        # Datos del propietario
+        propietario_nombre = request.POST.get("propietario_nombre")
+        propietario_documento_tipo = request.POST.get("propietario_documento_tipo")
+        propietario_documento_numero = request.POST.get("propietario_documento_numero")
+        propietario_direccion = request.POST.get("propietario_direccion")
+        propietario_telefono_fijo = request.POST.get("propietario_telefono_fijo")
+        propietario_telefono_celular = request.POST.get("propietario_telefono_celular")
+        propietario_email = request.POST.get("propietario_email")
+        propietario_responsable = request.POST.get("propietario_responsable") == "on"
+        
+        # Reseña del paciente
+        paciente_nombre = request.POST.get("paciente_nombre")
+        paciente_especie = request.POST.get("paciente_especie")
+        paciente_raza = request.POST.get("paciente_raza")
+        paciente_sexo = request.POST.get("paciente_sexo")
+        paciente_fecha_nacimiento = request.POST.get("paciente_fecha_nacimiento")
+        paciente_peso = request.POST.get("paciente_peso")
+        paciente_color = request.POST.get("paciente_color")
+        paciente_chip = request.POST.get("paciente_chip")
+        paciente_otras_identificaciones = request.POST.get("paciente_otras_identificaciones")
+        paciente_fin_zootecnico = request.POST.get("paciente_fin_zootecnico")
+        paciente_origen = request.POST.get("paciente_origen")
+        
+        # Anamnesis
+        anamnesis_dieta = request.POST.get("anamnesis_dieta")
+        anamnesis_enfermedades_previas = request.POST.get("anamnesis_enfermedades_previas")
+        anamnesis_esterilizado = request.POST.get("anamnesis_esterilizado")
+        anamnesis_num_partos = request.POST.get("anamnesis_num_partos")
+        anamnesis_cirugias_previas = request.POST.get("anamnesis_cirugias_previas")
+
+        # Validaciones básicas
+        if not all([id_paciente, fecha, paciente_nombre, paciente_especie]):
+            messages.error(request, "Please fill all required fields.")
+            return render(request, "medical_history_form.html", {
+                "mascotas": mascotas,
+                "action": "Add",
+                "rol": rol
+            })
+
+        # Crear documento
+        nueva_historia = {
+            "id_paciente": id_paciente,
+            "hc_numero": hc_numero,
+            "fecha": fecha,
+            "hora": hora or "",
+            
+            # Propietario
+            "propietario_nombre": propietario_nombre,
+            "propietario_responsable": propietario_responsable,
+            "propietario_documento_tipo": propietario_documento_tipo or "",
+            "propietario_documento_numero": propietario_documento_numero or "",
+            "propietario_direccion": propietario_direccion or "",
+            "propietario_telefono_fijo": propietario_telefono_fijo or "",
+            "propietario_telefono_celular": propietario_telefono_celular or "",
+            "propietario_email": propietario_email or "",
+            
+            # Paciente
+            "paciente_nombre": paciente_nombre,
+            "paciente_especie": paciente_especie,
+            "paciente_raza": paciente_raza or "",
+            "paciente_sexo": paciente_sexo or "",
+            "paciente_fecha_nacimiento": paciente_fecha_nacimiento or "",
+            "paciente_peso": paciente_peso or "",
+            "paciente_color": paciente_color or "",
+            "paciente_chip": paciente_chip or "",
+            "paciente_otras_identificaciones": paciente_otras_identificaciones or "",
+            "paciente_fin_zootecnico": paciente_fin_zootecnico or "",
+            "paciente_origen": paciente_origen or "",
+            
+            # Anamnesis
+            "anamnesis_dieta": anamnesis_dieta or "",
+            "anamnesis_enfermedades_previas": anamnesis_enfermedades_previas or "",
+            "anamnesis_esterilizado": anamnesis_esterilizado or "",
+            "anamnesis_num_partos": anamnesis_num_partos or "",
+            "anamnesis_cirugias_previas": anamnesis_cirugias_previas or "",
+            
+            # Metadata
+            "creado_por": current_user_id,
+            "fecha_creacion": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+            "ultima_actualizacion": datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        }
+
+        historia_clinica.insert_one(nueva_historia)
+        messages.success(request, "Medical history created successfully.")
+        return redirect("list_historias")
+
+    return render(request, "medical_history_form.html", {
+        "mascotas": mascotas,
+        "action": "Add",
+        "rol": rol
+    })
+
+
+# -------------------- EDITAR HISTORIA CLÍNICA (CORREGIDO) --------------------
+def edit_historia(request, id):
+    """Edita una historia clínica existente."""
+    if "user" not in request.session:
+        messages.warning(request, "Please log in first.")
+        return redirect("login")
+
+    rol = request.session.get("rol")
+    username = request.session.get("user")
+    
+    # Solo Veterinarios y Administradores pueden editar
+    if rol not in ["Veterinario", "Administrador"]:
+        messages.error(request, "You don't have permission to edit medical histories.")
+        return redirect("list_historias")
+
+    historia = historia_clinica.find_one({"_id": ObjectId(id)})
+    if not historia:
+        messages.error(request, "Medical history not found.")
+        return redirect("list_historias")
+
+    current_user = users.find_one({"User": username})
+    if not current_user:
+        messages.error(request, "User not found.")
+        return redirect("list_historias")
+    
+    current_user_id = str(current_user["_id"])
+
+    # ✅ CORRECCIÓN: Obtener todas las mascotas con el nombre correcto del dueño
+    mascotas = []
+    for m in pacientes.find():
+        m["id_str"] = str(m["_id"])
+        
+        # Buscar el dueño correctamente
+        if m.get("id_user"):
+            owner = users.find_one({"_id": ObjectId(m["id_user"])})
+            if owner:
+                # ✅ Usar el campo 'nombre' en lugar de 'User'
+                m["owner_name"] = owner.get("nombre", owner.get("User", "Unknown"))
+            else:
+                m["owner_name"] = "Unknown"
+        else:
+            m["owner_name"] = "Unknown"
+        
+        # Crear display_name con el nombre correcto del dueño
+        m["display_name"] = f"{m.get('nombre', 'Unknown')} ({m.get('especie', 'Unknown')}) - Owner: {m['owner_name']}"
+        mascotas.append(m)
+
+    if request.method == "POST":
+        # Datos básicos
+        id_paciente = request.POST.get("id_paciente")
+        hc_numero = request.POST.get("hc_numero")
+        fecha = request.POST.get("fecha")
+        hora = request.POST.get("hora")
+        
+        # Propietario
+        propietario_nombre = request.POST.get("propietario_nombre")
+        propietario_documento_tipo = request.POST.get("propietario_documento_tipo")
+        propietario_documento_numero = request.POST.get("propietario_documento_numero")
+        propietario_direccion = request.POST.get("propietario_direccion")
+        propietario_telefono_fijo = request.POST.get("propietario_telefono_fijo")
+        propietario_telefono_celular = request.POST.get("propietario_telefono_celular")
+        propietario_email = request.POST.get("propietario_email")
+        propietario_responsable = request.POST.get("propietario_responsable") == "on"
+        
+        # Paciente
+        paciente_nombre = request.POST.get("paciente_nombre")
+        paciente_especie = request.POST.get("paciente_especie")
+        paciente_raza = request.POST.get("paciente_raza")
+        paciente_sexo = request.POST.get("paciente_sexo")
+        paciente_fecha_nacimiento = request.POST.get("paciente_fecha_nacimiento")
+        paciente_peso = request.POST.get("paciente_peso")
+        paciente_color = request.POST.get("paciente_color")
+        paciente_chip = request.POST.get("paciente_chip")
+        paciente_otras_identificaciones = request.POST.get("paciente_otras_identificaciones")
+        paciente_fin_zootecnico = request.POST.get("paciente_fin_zootecnico")
+        paciente_origen = request.POST.get("paciente_origen")
+        
+        # Anamnesis
+        anamnesis_dieta = request.POST.get("anamnesis_dieta")
+        anamnesis_enfermedades_previas = request.POST.get("anamnesis_enfermedades_previas")
+        anamnesis_esterilizado = request.POST.get("anamnesis_esterilizado")
+        anamnesis_num_partos = request.POST.get("anamnesis_num_partos")
+        anamnesis_cirugias_previas = request.POST.get("anamnesis_cirugias_previas")
+
+        if not all([id_paciente, fecha, paciente_nombre, paciente_especie]):
+            messages.error(request, "Please fill all required fields.")
+            historia["id_str"] = str(historia["_id"])
+            return render(request, "medical_history_form.html", {
+                "historia": historia,
+                "mascotas": mascotas,
+                "action": "Edit",
+                "rol": rol
+            })
+
+        # Actualizar
+        historia_clinica.update_one(
+            {"_id": ObjectId(id)},
+            {"$set": {
+                "id_paciente": id_paciente,
+                "hc_numero": hc_numero,
+                "fecha": fecha,
+                "hora": hora or "",
+                
+                "propietario_nombre": propietario_nombre,
+                "propietario_responsable": propietario_responsable,
+                "propietario_documento_tipo": propietario_documento_tipo or "",
+                "propietario_documento_numero": propietario_documento_numero or "",
+                "propietario_direccion": propietario_direccion or "",
+                "propietario_telefono_fijo": propietario_telefono_fijo or "",
+                "propietario_telefono_celular": propietario_telefono_celular or "",
+                "propietario_email": propietario_email or "",
+                
+                "paciente_nombre": paciente_nombre,
+                "paciente_especie": paciente_especie,
+                "paciente_raza": paciente_raza or "",
+                "paciente_sexo": paciente_sexo or "",
+                "paciente_fecha_nacimiento": paciente_fecha_nacimiento or "",
+                "paciente_peso": paciente_peso or "",
+                "paciente_color": paciente_color or "",
+                "paciente_chip": paciente_chip or "",
+                "paciente_otras_identificaciones": paciente_otras_identificaciones or "",
+                "paciente_fin_zootecnico": paciente_fin_zootecnico or "",
+                "paciente_origen": paciente_origen or "",
+                
+                "anamnesis_dieta": anamnesis_dieta or "",
+                "anamnesis_enfermedades_previas": anamnesis_enfermedades_previas or "",
+                "anamnesis_esterilizado": anamnesis_esterilizado or "",
+                "anamnesis_num_partos": anamnesis_num_partos or "",
+                "anamnesis_cirugias_previas": anamnesis_cirugias_previas or "",
+                
+                "ultima_actualizacion": datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+            }}
+        )
+
+        messages.success(request, "Medical history updated successfully.")
+        return redirect("view_historia", id=id)
+
+    # Preparar datos
+    historia["id_str"] = str(historia["_id"])
+    historia["id_paciente"] = str(historia.get("id_paciente", ""))
+
+    return render(request, "medical_history_form.html", {
+        "historia": historia,
+        "mascotas": mascotas,
+        "action": "Edit",
+        "rol": rol
+    })
+
+
+# -------------------- TAMBIÉN CORREGIR list_historias --------------------
+def list_historias(request):
+    """Lista historias clínicas según el rol del usuario."""
+    if "user" not in request.session:
+        messages.warning(request, "Please log in first.")
+        return redirect("login")
+
+    rol = request.session.get("rol")
+    username = request.session.get("user")
+    
+    current_user = users.find_one({"User": username})
+    if not current_user:
+        messages.error(request, "User not found.")
+        return redirect("index")
+    
+    current_user_id = str(current_user["_id"])
+    historias = []
+
+    if rol == "Administrador" or rol == "Veterinario":
+        # Admin y Veterinarios ven todas las historias
+        historias = list(historia_clinica.find())
+    elif rol == "Cliente":
+        # Clientes solo ven historias de sus mascotas
+        mascotas_ids = [str(m["_id"]) for m in pacientes.find({"id_user": current_user_id})]
+        historias = list(historia_clinica.find({"id_paciente": {"$in": mascotas_ids}}))
+
+    # Enriquecer datos
+    for h in historias:
+        h["id_str"] = str(h["_id"])
+        
+        # Obtener datos de la mascota
+        if h.get("id_paciente"):
+            mascota = pacientes.find_one({"_id": ObjectId(h["id_paciente"])})
+            if mascota:
+                h["mascota_nombre"] = mascota.get("nombre", "Unknown")
+                h["mascota_especie"] = mascota.get("especie", "Unknown")
+                h["mascota_raza"] = mascota.get("raza", "Unknown")
+                
+                # ✅ CORRECCIÓN: Obtener dueño con nombre correcto
+                if mascota.get("id_user"):
+                    owner = users.find_one({"_id": ObjectId(mascota["id_user"])})
+                    if owner:
+                        # Usar 'nombre' en lugar de 'User'
+                        h["propietario_nombre"] = owner.get("nombre", owner.get("User", "Unknown"))
+                    else:
+                        h["propietario_nombre"] = "Unknown"
+                else:
+                    h["propietario_nombre"] = "Unknown"
+
+        # Formatear fecha
+        if h.get("fecha"):
+            try:
+                fecha_obj = datetime.strptime(h["fecha"], "%Y-%m-%d")
+                h["fecha_formatted"] = fecha_obj.strftime("%B %d, %Y")
+            except:
+                h["fecha_formatted"] = h["fecha"]
+
+        # Permisos
+        h["puede_editar"] = False
+        h["puede_eliminar"] = False
+        
+        if rol == "Administrador":
+            h["puede_editar"] = True
+            h["puede_eliminar"] = True
+        elif rol == "Veterinario":
+            h["puede_editar"] = True
+
+    # Ordenar por fecha descendente
+    historias.sort(key=lambda x: x.get("fecha", "1970-01-01"), reverse=True)
+
+    return render(request, "medical_history_list.html", {
+        "historias": historias,
+        "rol": rol,
+        "username": username,
+        "total": len(historias)
+    })
+
+
+
+
+
+
+
+
+
+
+# -------------------- ELIMINAR HISTORIA CLÍNICA --------------------
+def delete_historia(request, id):
+    """Elimina una historia clínica (solo administradores)."""
+    if "user" not in request.session:
+        messages.warning(request, "Please log in first.")
+        return redirect("login")
+
+    rol = request.session.get("rol")
+    
+    if rol != "Administrador":
+        messages.error(request, "Only administrators can delete medical histories.")
+        return redirect("list_historias")
+
+    historia = historia_clinica.find_one({"_id": ObjectId(id)})
+    if not historia:
+        messages.error(request, "Medical history not found.")
+        return redirect("list_historias")
+
+    historia_clinica.delete_one({"_id": ObjectId(id)})
+    messages.success(request, "Medical history deleted successfully.")
+    return redirect("list_historias")
+
+
+
+
+
+

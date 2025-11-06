@@ -32,6 +32,15 @@
       <span class="font-medium group-hover:translate-x-1 transition-transform">My Pets</span>
     </a>
 
+    <!-- Medical History (NUEVO - Para todos los roles) -->
+    <a href="{% url 'list_historias' %}" 
+       class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+              hover:bg-olive-700 transition-all duration-300
+              {% if 'medical-history' in request.path %}bg-olive-700 shadow-lg{% endif %}">
+      <i class="fas fa-file-medical text-olive-400 group-hover:text-white text-lg w-5"></i>
+      <span class="font-medium group-hover:translate-x-1 transition-transform">Medical History</span>
+    </a>
+
     {% if rol == 'Administrador' %}
       <!-- Separador -->
       <div class="pt-4 pb-2">

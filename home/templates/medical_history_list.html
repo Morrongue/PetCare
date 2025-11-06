@@ -1,0 +1,512 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="space-y-6 max-w-7xl mx-auto px-4 sm:px-6">
+  
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-bold text-white flex items-center">
+        <i class="fas fa-file-medical text-olive-500 mr-3"></i>
+        Medical History Records
+      </h1>
+      <p class="text-gray-400 mt-1 text-sm sm:text-base">
+        {% if rol == 'Administrador' %}
+          All medical records
+        {% elif rol == 'Veterinario' %}
+          All patient records
+        {% else %}
+          Your pets' medical records
+        {% endif %}
+      </p>
+    </div>
+    
+    {% if rol == 'Veterinario' or rol == 'Administrador' %}
+      <a href="{% url 'add_historia' %}" 
+         class="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-olive-700 to-olive-600 
+                hover:from-olive-600 hover:to-olive-500 text-white font-semibold px-4 sm:px-6 py-2 sm:py-3 rounded-lg
+                transform hover:scale-105 transition-all duration-300 shadow-lg hover:shadow-olive-500/50
+                w-full sm:w-auto text-sm sm:text-base">
+        <i class="fas fa-plus-circle"></i>
+        <span>New Medical Record</span>
+      </a>
+    {% endif %}
+  </div>
+
+  <!-- Mensajes -->
+  {% if messages %}
+    {% for message in messages %}
+      <div class="p-3 sm:p-4 rounded-lg {% if message.tags == 'success' %}bg-green-900/30 border border-green-700 text-green-300{% else %}bg-red-900/30 border border-red-700 text-red-300{% endif %} text-sm sm:text-base">
+        <i class="fas {% if message.tags == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %} mr-2"></i>
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+
+  {% if historias %}
+    <!-- Stats Card -->
+    <div class="bg-dark-800 border border-dark-700 rounded-xl p-4 sm:p-6">
+      <div class="flex items-center space-x-4">
+        <div class="w-12 h-12 sm:w-16 sm:h-16 bg-gradient-to-br from-olive-700 to-olive-600 rounded-xl flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-folder-open text-white text-xl sm:text-3xl"></i>
+        </div>
+        <div>
+          <p class="text-gray-400 text-sm sm:text-base">Total Medical Records</p>
+          <p class="text-2xl sm:text-4xl font-bold text-white" id="totalHistorias">{{ total }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search & Filters -->
+    <div class="bg-dark-800 border border-dark-700 rounded-xl p-4 sm:p-6 shadow-xl">
+      <div class="flex flex-col gap-3 sm:gap-4">
+        <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div class="flex-1 relative">
+            <i class="fas fa-search absolute left-3 sm:left-4 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm sm:text-base"></i>
+            <input type="text" 
+                   id="searchInput"
+                   placeholder="Search by pet name, owner, or species..."
+                   class="w-full bg-dark-900 border border-dark-600 rounded-lg pl-10 sm:pl-12 pr-4 py-2 sm:py-3 text-white text-sm sm:text-base
+                          focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent"
+                   oninput="searchRecords()">
+          </div>
+
+          <button onclick="clearSearch()"
+                  class="bg-dark-900 hover:bg-dark-700 text-gray-300 hover:text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg
+                         border border-dark-600 hover:border-olive-600 text-sm sm:text-base flex items-center justify-center">
+            <i class="fas fa-times mr-2"></i>Clear
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <select id="speciesFilter" onchange="searchRecords()"
+                  class="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-white text-sm sm:text-base
+                         focus:outline-none focus:ring-2 focus:ring-olive-600">
+            <option value="">All Species</option>
+            <option value="dog">🐕 Dog</option>
+            <option value="cat">🐈 Cat</option>
+            <option value="bird">🦜 Bird</option>
+            <option value="rabbit">🐰 Rabbit</option>
+            <option value="hamster">🐹 Hamster</option>
+            <option value="other">🦎 Other</option>
+          </select>
+
+          <select id="sortOrder" onchange="sortRecords()"
+                  class="w-full bg-dark-900 border border-dark-600 rounded-lg px-3 sm:px-4 py-2 sm:py-3 text-white text-sm sm:text-base
+                         focus:outline-none focus:ring-2 focus:ring-olive-600">
+            <option value="desc">⬇️ Newest First</option>
+            <option value="asc">⬆️ Oldest First</option>
+          </select>
+        </div>
+
+        <div class="flex items-center justify-between pt-2 border-t border-dark-700">
+          <p class="text-xs sm:text-sm text-gray-400">
+            <span id="resultCount">{{ historias|length }}</span> records found
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop Table -->
+    <div class="hidden md:block bg-dark-800 border border-dark-700 rounded-xl overflow-hidden shadow-xl">
+      <div class="overflow-x-auto">
+        <table class="min-w-full" id="historiesTable">
+          <thead class="bg-dark-900 border-b border-dark-700">
+            <tr>
+              <th class="px-6 py-3 text-left text-sm font-semibold text-gray-300">
+                <i class="fas fa-hashtag text-olive-500 mr-2"></i>HC #
+              </th>
+              <th class="px-6 py-3 text-left text-sm font-semibold text-gray-300">
+                <i class="fas fa-paw text-olive-500 mr-2"></i>Patient
+              </th>
+              <th class="px-6 py-3 text-left text-sm font-semibold text-gray-300">
+                <i class="fas fa-user text-olive-500 mr-2"></i>Owner
+              </th>
+              <th class="px-6 py-3 text-left text-sm font-semibold text-gray-300">
+                <i class="fas fa-dna text-olive-500 mr-2"></i>Species
+              </th>
+              <th class="px-6 py-3 text-left text-sm font-semibold text-gray-300">
+                <i class="fas fa-calendar text-olive-500 mr-2"></i>Date
+              </th>
+              <th class="px-6 py-3 text-center text-sm font-semibold text-gray-300">
+                <i class="fas fa-cog text-olive-500 mr-2"></i>Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-dark-700">
+            {% for h in historias %}
+              <tr class="history-row hover:bg-dark-900 transition-colors"
+                  data-pet="{{ h.mascota_nombre|lower }}"
+                  data-owner="{{ h.propietario_nombre|lower }}"
+                  data-species="{{ h.mascota_especie|lower }}"
+                  data-date="{{ h.fecha }}"
+                  data-hc="{{ h.hc_numero|default:'' }}">
+                
+                <td class="px-6 py-3">
+                  <span class="text-gray-400 font-mono text-sm">
+                    {% if h.hc_numero %}
+                      HC-{{ h.hc_numero }}
+                    {% else %}
+                      -
+                    {% endif %}
+                  </span>
+                </td>
+
+                <td class="px-6 py-3">
+                  <div class="flex items-center space-x-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-olive-700 to-olive-600 
+                                flex items-center justify-center flex-shrink-0">
+                      <i class="fas fa-paw text-white text-sm"></i>
+                    </div>
+                    <div>
+                      <p class="text-white font-medium pet-name">{{ h.mascota_nombre }}</p>
+                      <p class="text-gray-500 text-xs">{{ h.mascota_raza|default:"Mixed breed" }}</p>
+                    </div>
+                  </div>
+                </td>
+
+                <td class="px-6 py-3">
+                  <div class="flex items-center space-x-2">
+                    <i class="fas fa-user text-blue-500"></i>
+                    <span class="text-gray-300 owner-name">{{ h.propietario_nombre }}</span>
+                  </div>
+                </td>
+
+                <td class="px-6 py-3">
+                  <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold
+                               {% if h.mascota_especie|lower == 'dog' or h.mascota_especie|lower == 'perro' %}
+                                 bg-amber-700/30 text-amber-400 border border-amber-700
+                               {% elif h.mascota_especie|lower == 'cat' or h.mascota_especie|lower == 'gato' %}
+                                 bg-purple-700/30 text-purple-400 border border-purple-700
+                               {% elif h.mascota_especie|lower == 'bird' or h.mascota_especie|lower == 'ave' %}
+                                 bg-cyan-700/30 text-cyan-400 border border-cyan-700
+                               {% else %}
+                                 bg-gray-700/30 text-gray-400 border border-gray-700
+                               {% endif %}">
+                    {{ h.mascota_especie|title }}
+                  </span>
+                </td>
+
+                <td class="px-6 py-3">
+                  <div class="flex flex-col">
+                    <span class="text-white font-medium text-sm">{{ h.fecha_formatted|default:h.fecha }}</span>
+                  </div>
+                </td>
+
+                <td class="px-6 py-3">
+                  <div class="flex items-center justify-center space-x-2">
+                    <a href="{% url 'view_historia' h.id_str %}" 
+                       class="bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg
+                              transition-colors text-sm font-medium inline-flex items-center"
+                       title="View details">
+                      <i class="fas fa-eye mr-1"></i>View
+                    </a>
+                    
+                    {% if h.puede_editar %}
+                      <a href="{% url 'edit_historia' h.id_str %}" 
+                         class="bg-olive-700 hover:bg-olive-600 text-white px-3 py-1.5 rounded-lg
+                                transition-colors text-sm font-medium inline-flex items-center"
+                         title="Edit record">
+                        <i class="fas fa-edit mr-1"></i>Edit
+                      </a>
+                    {% endif %}
+                    
+                    {% if h.puede_eliminar %}
+                      <button onclick="confirmDelete('{{ h.id_str }}', '{{ h.mascota_nombre|escapejs }}')"
+                              class="bg-red-900/50 hover:bg-red-900 text-red-300 hover:text-white px-3 py-1.5 rounded-lg
+                                     transition-colors text-sm font-medium border border-red-700 inline-flex items-center"
+                              title="Delete record">
+                        <i class="fas fa-trash mr-1"></i>Delete
+                      </button>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Mobile Cards -->
+    <div class="md:hidden space-y-3 p-4 bg-dark-800 border border-dark-700 rounded-xl" id="mobileHistoriesList">
+      {% for h in historias %}
+        <div class="bg-dark-900 border border-dark-700 rounded-xl p-4 history-row mobile-history-card"
+             data-pet="{{ h.mascota_nombre|lower }}"
+             data-owner="{{ h.propietario_nombre|lower }}"
+             data-species="{{ h.mascota_especie|lower }}"
+             data-date="{{ h.fecha }}"
+             data-hc="{{ h.hc_numero|default:'' }}">
+          
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center space-x-3 flex-1 min-w-0">
+              <div class="w-10 h-10 rounded-full bg-gradient-to-br from-olive-700 to-olive-600 
+                          flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-paw text-white"></i>
+              </div>
+              <div class="min-w-0 flex-1">
+                <p class="text-white font-medium pet-name truncate">{{ h.mascota_nombre }}</p>
+                <p class="text-gray-400 text-xs truncate">{{ h.mascota_especie|title }}</p>
+              </div>
+            </div>
+            
+            {% if h.hc_numero %}
+              <span class="text-gray-400 font-mono text-xs">HC-{{ h.hc_numero }}</span>
+            {% endif %}
+          </div>
+
+          <div class="space-y-2 mb-3">
+            <div class="flex items-center text-gray-300 text-sm">
+              <i class="fas fa-user text-blue-500 mr-2 w-4"></i>
+              <span class="truncate owner-name">{{ h.propietario_nombre }}</span>
+            </div>
+            
+            <div class="flex items-center text-gray-300 text-sm">
+              <i class="fas fa-calendar text-olive-500 mr-2 w-4"></i>
+              <span>{{ h.fecha_formatted|default:h.fecha }}</span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end space-x-2 pt-3 border-t border-dark-700">
+            <a href="{% url 'view_historia' h.id_str %}" 
+               class="bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg
+                      transition-colors text-xs font-medium">
+              <i class="fas fa-eye"></i>
+            </a>
+            
+            {% if h.puede_editar %}
+              <a href="{% url 'edit_historia' h.id_str %}" 
+                 class="bg-olive-700 hover:bg-olive-600 text-white px-3 py-1.5 rounded-lg
+                        transition-colors text-xs font-medium">
+                <i class="fas fa-edit"></i>
+              </a>
+            {% endif %}
+            
+            {% if h.puede_eliminar %}
+              <button onclick="confirmDelete('{{ h.id_str }}', '{{ h.mascota_nombre|escapejs }}')"
+                      class="bg-red-900/50 hover:bg-red-900 text-red-300 px-3 py-1.5 rounded-lg
+                             transition-colors text-xs font-medium border border-red-700">
+                <i class="fas fa-trash"></i>
+              </button>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- No Results -->
+    <div id="noResults" class="hidden p-12 text-center bg-dark-800 border border-dark-700 rounded-xl">
+      <div class="max-w-md mx-auto">
+        <div class="w-20 h-20 mx-auto mb-4 bg-dark-700 rounded-full flex items-center justify-center">
+          <i class="fas fa-search text-gray-600 text-3xl"></i>
+        </div>
+        <h3 class="text-xl font-bold text-white mb-2">No records found</h3>
+        <p class="text-gray-400 mb-4">Try adjusting your search terms or filters</p>
+        <button onclick="clearSearch()"
+                class="bg-olive-700 hover:bg-olive-600 text-white px-6 py-2 rounded-lg">
+          <i class="fas fa-redo mr-2"></i>Clear Search
+        </button>
+      </div>
+    </div>
+
+  {% else %}
+    <!-- Empty State -->
+    <div class="bg-dark-800 border border-dark-700 rounded-2xl p-12 text-center">
+      <div class="max-w-md mx-auto">
+        <div class="w-32 h-32 mx-auto mb-6 bg-gradient-to-br from-blue-800 to-blue-700 rounded-full 
+                    flex items-center justify-center shadow-2xl">
+          <i class="fas fa-file-medical text-white text-5xl"></i>
+        </div>
+
+        <h3 class="text-2xl font-bold text-white mb-3">No Medical Records Yet</h3>
+        <p class="text-gray-400 mb-6">
+          {% if rol == 'Cliente' %}
+            Your pets don't have any medical records yet.
+          {% else %}
+            Start creating medical records for your patients.
+          {% endif %}
+        </p>
+
+        {% if rol == 'Veterinario' or rol == 'Administrador' %}
+          <a href="{% url 'add_historia' %}" 
+             class="inline-flex items-center space-x-2 bg-gradient-to-r from-olive-700 to-olive-600 
+                    hover:from-olive-600 hover:to-olive-500 text-white font-semibold px-8 py-3 rounded-lg
+                    transform hover:scale-105 transition-all shadow-lg hover:shadow-olive-500/50">
+            <i class="fas fa-plus-circle"></i>
+            <span>Create First Record</span>
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-dark-800 border border-dark-700 rounded-2xl max-w-md w-full shadow-2xl transform transition-all scale-95"
+       onclick="event.stopPropagation()">
+    
+    <div class="p-6">
+      <div class="w-16 h-16 mx-auto mb-4 bg-red-900/30 rounded-full flex items-center justify-center">
+        <i class="fas fa-exclamation-triangle text-red-400 text-3xl"></i>
+      </div>
+
+      <h3 class="text-xl font-bold text-white mb-2 text-center">Delete Medical Record?</h3>
+      
+      <p class="text-gray-400 mb-1 text-center">
+        Are you sure you want to delete the medical record for <strong class="text-white" id="deletePetName"></strong>?
+      </p>
+      <p class="text-gray-500 text-sm mb-6 text-center">This action cannot be undone.</p>
+
+      <div class="flex space-x-3">
+        <button onclick="closeModal()"
+                class="flex-1 bg-dark-900 hover:bg-dark-700 text-gray-300 hover:text-white py-3 rounded-lg
+                       transition-colors font-medium border border-dark-600">
+          <i class="fas fa-times mr-2"></i>Cancel
+        </button>
+        <button onclick="executeDelete()"
+                class="flex-1 bg-red-700 hover:bg-red-600 text-white py-3 rounded-lg
+                       transition-colors font-medium">
+          <i class="fas fa-trash mr-2"></i>Yes, Delete
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let historiaToDelete = null;
+  let allRows = [];
+  let allMobileCards = [];
+
+  document.addEventListener('DOMContentLoaded', function() {
+    allRows = Array.from(document.querySelectorAll('.history-row'));
+    allMobileCards = Array.from(document.querySelectorAll('.mobile-history-card'));
+    
+    sortRecords();
+
+    const modal = document.getElementById('deleteModal');
+    if (modal) {
+      modal.addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+      });
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeModal();
+    });
+  });
+
+  function searchRecords() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+    const speciesFilter = document.getElementById('speciesFilter').value.toLowerCase();
+    
+    let visibleCount = 0;
+
+    allRows.forEach(row => {
+      const matches = shouldShowRecord(row, searchTerm, speciesFilter);
+      row.style.display = matches ? '' : 'none';
+      if (matches) visibleCount++;
+    });
+
+    allMobileCards.forEach(card => {
+      const matches = shouldShowRecord(card, searchTerm, speciesFilter);
+      card.style.display = matches ? '' : 'none';
+    });
+
+    document.getElementById('resultCount').textContent = visibleCount;
+    document.getElementById('totalHistorias').textContent = visibleCount;
+
+    const noResults = document.getElementById('noResults');
+    const table = document.getElementById('historiesTable')?.closest('.bg-dark-800');
+    const mobileList = document.getElementById('mobileHistoriesList')?.closest('.bg-dark-800');
+    
+    if (visibleCount === 0) {
+      if (table) table.style.display = 'none';
+      if (mobileList) mobileList.style.display = 'none';
+      noResults.classList.remove('hidden');
+    } else {
+      if (table) table.style.display = 'block';
+      if (mobileList) mobileList.style.display = 'block';
+      noResults.classList.add('hidden');
+    }
+  }
+
+  function shouldShowRecord(element, searchTerm, speciesFilter) {
+    const pet = element.dataset.pet || '';
+    const owner = element.dataset.owner || '';
+    const species = element.dataset.species || '';
+    const hc = element.dataset.hc || '';
+
+    const matchesSearch = !searchTerm || 
+                         pet.includes(searchTerm) || 
+                         owner.includes(searchTerm) || 
+                         species.includes(searchTerm) ||
+                         hc.includes(searchTerm);
+    
+    const matchesSpecies = !speciesFilter || species.includes(speciesFilter);
+
+    return matchesSearch && matchesSpecies;
+  }
+
+  function sortRecords() {
+    const sortOrder = document.getElementById('sortOrder').value;
+    const tbody = document.querySelector('#historiesTable tbody');
+    const mobileList = document.getElementById('mobileHistoriesList');
+    
+    allRows.sort((a, b) => {
+      const dateA = new Date(a.dataset.date || '1970-01-01');
+      const dateB = new Date(b.dataset.date || '1970-01-01');
+      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    });
+    
+    allMobileCards.sort((a, b) => {
+      const dateA = new Date(a.dataset.date || '1970-01-01');
+      const dateB = new Date(b.dataset.date || '1970-01-01');
+      return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    });
+    
+    if (tbody) allRows.forEach(row => tbody.appendChild(row));
+    if (mobileList) allMobileCards.forEach(card => mobileList.appendChild(card));
+    
+    searchRecords();
+  }
+
+  function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('speciesFilter').value = '';
+    document.getElementById('sortOrder').value = 'desc';
+    sortRecords();
+  }
+
+  function confirmDelete(historiaId, petName) {
+    historiaToDelete = historiaId;
+    document.getElementById('deletePetName').textContent = petName;
+    
+    const modal = document.getElementById('deleteModal');
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+      modal.querySelector('div > div').classList.remove('scale-95');
+      modal.querySelector('div > div').classList.add('scale-100');
+    }, 10);
+  }
+
+  function closeModal() {
+    const modal = document.getElementById('deleteModal');
+    modal.querySelector('div > div').classList.remove('scale-100');
+    modal.querySelector('div > div').classList.add('scale-95');
+    setTimeout(() => {
+      modal.classList.add('hidden');
+      historiaToDelete = null;
+    }, 200);
+  }
+
+  function executeDelete() {
+    if (historiaToDelete) {
+      window.location.href = `/historias/delete/${historiaToDelete}/`;
+    }
+  }
+</script>
+
+{% endblock %}

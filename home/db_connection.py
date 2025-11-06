@@ -9,5 +9,6 @@ pacientes = db["paciente"]
 veterinarios = db["veterinarios"]
 citas = db["citas"]
 auditoria = db["auditoria"]
+historia_clinica =db["historia_clinica"]
 
 
