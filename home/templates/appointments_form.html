@@ -144,7 +144,7 @@
                            focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
                            transition-all duration-300 group-hover:border-olive-700">
               <option value="">-- Select reason --</option>
-              <option value="Consulta general" {% if cita and cita.motivo == 'Consulta general' %}selected{% endif %}>Consulta general - $100 COP</option>
+              <option value="Consulta general" {% if cita and cita.motivo == 'Consulta general' %}selected{% endif %}>Consulta general - $1,000 COP</option>
               <option value="Vacunación" {% if cita and cita.motivo == 'Vacunación' %}selected{% endif %}>Vacunación - $30,000 COP</option>
               <option value="Cirugía" {% if cita and cita.motivo == 'Cirugía' %}selected{% endif %}>Cirugía - $200,000 COP</option>
               <option value="Emergencia" {% if cita and cita.motivo == 'Emergencia' %}selected{% endif %}>Emergencia - $100,000 COP</option>
@@ -388,7 +388,7 @@
   $(document).ready(function() {
     // Prices mapping
     const prices = {
-      'Consulta general': 100,
+      'Consulta general': 1000,
       'Vacunación': 30000,
       'Cirugía': 200000,
       'Emergencia': 100000,
