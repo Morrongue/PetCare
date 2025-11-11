@@ -80,7 +80,7 @@ EPAYCO_CUST_ID = '1567292'
 EPAYCO_P_KEY = '4a1632e025a043f2eac033b1083f27fcdabe7293'
 
 # Modo (False = Production)
-EPAYCO_TEST_MODE = True
+EPAYCO_TEST_MODE = False
 
 # URLs de callback (PRODUCCIÓN - Render)
 BASE_URL = 'https://petcare-r8tf.onrender.com'
@@ -89,7 +89,7 @@ EPAYCO_RESPONSE_URL = f'{BASE_URL}/pagos/respuesta/'
 
 # Precios por tipo de consulta (en COP)
 APPOINTMENT_PRICES = {
-    'Consulta general': 50000,
+    'Consulta general': 100,
     'Vacunación': 30000,
     'Cirugía': 200000,
     'Emergencia': 100000,
@@ -97,7 +97,7 @@ APPOINTMENT_PRICES = {
     'Desparasitación': 25000,
     'Baño y peluquería': 35000,
 }
-DEFAULT_APPOINTMENT_PRICE = 50000
+DEFAULT_APPOINTMENT_PRICE = 100
 
 # Moneda
 EPAYCO_CURRENCY = 'COP'
