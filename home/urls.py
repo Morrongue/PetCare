@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 
+
 urlpatterns = [
     path("", views.index, name="index"),
     
@@ -49,4 +50,13 @@ urlpatterns = [
     path('historias/edit/<str:id>/', views.edit_historia, name='edit_historia'),
     # Eliminar historia clínica (solo administradores)
     path('historias/delete/<str:id>/', views.delete_historia, name='delete_historia'),
+
+        # ========== PAYMENTS ==========
+ 
+    path('pagos/preparar/', views.prepare_payment, name='prepare_payment'),
+    path('pagos/confirmacion/', views.epayco_confirmation, name='epayco_confirmation'),
+    path('pagos/respuesta/', views.epayco_response, name='epayco_response'),
+    path('pagos/exito/<str:ref_payco>/', views.payment_success, name='payment_success'),
+    path('pagos/fallo/<str:ref_payco>/', views.payment_failure, name='payment_failure'),
+
 ]

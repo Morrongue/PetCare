@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="max-w-4xl mx-auto px-4 sm:px-6 py-6">
+  
+  <!-- Header -->
+  <div class="mb-6">
+    <h1 class="text-2xl sm:text-3xl font-bold text-white flex items-center">
+      <i class="fas fa-credit-card text-olive-500 mr-3"></i>
+      Payment Confirmation
+    </h1>
+    <p class="text-gray-400 mt-1 text-sm sm:text-base">
+      Review your appointment details and proceed with secure payment
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    
+    <!-- Resumen de la Cita -->
+    <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+      <div class="flex items-center space-x-3 mb-6 pb-4 border-b border-dark-700">
+        <div class="w-10 h-10 bg-olive-700 rounded-lg flex items-center justify-center">
+          <i class="fas fa-calendar-check text-white"></i>
+        </div>
+        <h2 class="text-xl font-bold text-white">Appointment Summary</h2>
+      </div>
+
+      <div class="space-y-4">
+        <div class="flex items-start space-x-3">
+          <i class="fas fa-paw text-olive-500 mt-1"></i>
+          <div class="flex-1">
+            <p class="text-gray-400 text-sm">Pet</p>
+            <p class="text-white font-medium">{{ mascota_nombre }}</p>
+            <p class="text-gray-500 text-sm">{{ mascota_especie }}</p>
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-3">
+          <i class="fas fa-user-md text-olive-500 mt-1"></i>
+          <div class="flex-1">
+            <p class="text-gray-400 text-sm">Veterinarian</p>
+            <p class="text-white font-medium">Dr. {{ veterinario_nombre }}</p>
+            {% if veterinario_especialidad %}
+            <p class="text-gray-500 text-sm">{{ veterinario_especialidad }}</p>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-3">
+          <i class="fas fa-calendar text-olive-500 mt-1"></i>
+          <div class="flex-1">
+            <p class="text-gray-400 text-sm">Date & Time</p>
+            <p class="text-white font-medium">{{ fecha }}</p>
+            <p class="text-gray-500 text-sm">{{ hora }}</p>
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-3">
+          <i class="fas fa-notes-medical text-olive-500 mt-1"></i>
+          <div class="flex-1">
+            <p class="text-gray-400 text-sm">Reason</p>
+            <p class="text-white font-medium">{{ motivo }}</p>
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-3">
+          <i class="fas fa-clock text-olive-500 mt-1"></i>
+          <div class="flex-1">
+            <p class="text-gray-400 text-sm">Duration</p>
+            <p class="text-white font-medium">{{ duracion }} hour{{ duracion|pluralize }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Información de Pago -->
+    <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+      <div class="flex items-center space-x-3 mb-6 pb-4 border-b border-dark-700">
+        <div class="w-10 h-10 bg-green-700 rounded-lg flex items-center justify-center">
+          <i class="fas fa-dollar-sign text-white"></i>
+        </div>
+        <h2 class="text-xl font-bold text-white">Payment Details</h2>
+      </div>
+
+      <div class="space-y-4 mb-6">
+        <div class="flex justify-between items-center p-4 bg-dark-900 rounded-lg">
+          <span class="text-gray-300">Service</span>
+          <span class="text-white font-medium">{{ motivo }}</span>
+        </div>
+
+        <div class="flex justify-between items-center p-4 bg-dark-900 rounded-lg">
+          <span class="text-gray-300">Price</span>
+          <span class="text-white font-medium">${{ precio|floatformat:0 }} COP</span>
+        </div>
+
+        <div class="h-px bg-dark-600"></div>
+
+        <div class="flex justify-between items-center p-4 bg-gradient-to-r from-olive-900/30 to-olive-800/30 
+                    rounded-lg border border-olive-700/50">
+          <span class="text-white font-bold text-lg">Total to Pay</span>
+          <span class="text-olive-400 font-bold text-2xl">${{ precio|floatformat:0 }} COP</span>
+        </div>
+      </div>
+
+      <!-- Botón de Pago -->
+      <button 
+        id="payButton"
+        onclick="openEpaycoCheckout()"
+        class="w-full bg-gradient-to-r from-olive-700 to-olive-600 hover:from-olive-600 hover:to-olive-500
+               text-white font-bold py-4 rounded-lg transition-all duration-300 shadow-lg
+               transform hover:scale-105 flex items-center justify-center space-x-2">
+        <i class="fas fa-lock"></i>
+        <span>Pay with ePayco</span>
+      </button>
+
+      <!-- Métodos de pago aceptados -->
+      <div class="mt-6">
+        <p class="text-gray-400 text-sm mb-3 text-center">We accept:</p>
+        <div class="flex flex-wrap justify-center gap-3">
+          <div class="bg-dark-900 px-3 py-2 rounded-lg border border-dark-600">
+            <span class="text-gray-300 text-xs">💳 Credit Cards</span>
+          </div>
+          <div class="bg-dark-900 px-3 py-2 rounded-lg border border-dark-600">
+            <span class="text-gray-300 text-xs">💰 PSE</span>
+          </div>
+          <div class="bg-dark-900 px-3 py-2 rounded-lg border border-dark-600">
+            <span class="text-gray-300 text-xs">📱 Nequi</span>
+          </div>
+          <div class="bg-dark-900 px-3 py-2 rounded-lg border border-dark-600">
+            <span class="text-gray-300 text-xs">💵 Cash</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Seguridad -->
+      <div class="mt-6 flex items-center justify-center space-x-2 text-xs text-gray-500">
+        <i class="fas fa-shield-alt text-olive-500"></i>
+        <span>Secure payment processed by ePayco</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Botón de Cancelar -->
+  <div class="mt-6 flex justify-center">
+    <a href="{% url 'list_citas' %}" 
+       class="inline-flex items-center space-x-2 bg-dark-900 hover:bg-dark-700 
+              text-gray-300 hover:text-white font-semibold px-6 py-3 rounded-lg
+              border border-dark-600 hover:border-olive-600 transition-all">
+      <i class="fas fa-arrow-left"></i>
+      <span>Back to Appointments</span>
+    </a>
+  </div>
+
+</div>
+
+<!-- ePayco Checkout Script -->
+<script src="https://checkout.epayco.co/checkout.js"></script>
+
+<script>
+console.log('🔍 Iniciando configuración de ePayco...');
+console.log('Public Key:', '{{ EPAYCO_PUBLIC_KEY }}');
+console.log('Test Mode:', '{{ EPAYCO_TEST_MODE }}');
+console.log('Reference:', '{{ ref_payco }}');
+
+function openEpaycoCheckout() {
+    console.log('🚀 Abriendo checkout de ePayco...');
+    
+    // Verificar si ePayco está disponible
+    if (typeof ePayco === 'undefined') {
+        console.error('❌ ePayco no está definido. El script no cargó correctamente.');
+        alert('Error: ePayco no está disponible. Por favor recarga la página.');
+        return;
+    }
+    
+    try {
+        var handler = ePayco.checkout.configure({
+            key: '{{ EPAYCO_PUBLIC_KEY }}',
+            test: {% if EPAYCO_TEST_MODE == 'true' %}true{% else %}false{% endif %}
+        });
+        
+        console.log('✅ Handler configurado');
+        
+        var data = {
+            // Información del producto
+            name: "Cita Veterinaria - {{ motivo }}",
+            description: "Cita para {{ mascota_nombre }}",
+            invoice: "{{ ref_payco }}",
+            currency: "cop",
+            amount: "{{ precio }}",
+            tax_base: "0",
+            tax: "0",
+            country: "co",
+            lang: "es",
+            
+            // Información del comprador
+            external: "false",
+            email_billing: "{{ user_email }}",
+            name_billing: "{{ user_name }}",
+            type_doc_billing: "cc",
+            mobilephone_billing: "{{ user_phone }}",
+            
+            // URLs de respuesta
+            confirmation: "{{ EPAYCO_CONFIRMATION_URL }}",
+            response: "{{ EPAYCO_RESPONSE_URL }}?ref_payco={{ ref_payco }}",
+            
+            // Configuración adicional
+            methodsDisable: []
+        };
+        
+        console.log('📦 Datos de pago:', data);
+        console.log('🔓 Abriendo modal...');
+        
+        handler.open(data);
+        
+        console.log('✅ Modal abierto exitosamente');
+        
+    } catch (error) {
+        console.error('❌ Error al abrir ePayco:', error);
+        alert('Error al abrir el sistema de pagos: ' + error.message);
+    }
+}
+
+// Verificar que ePayco cargó correctamente
+window.addEventListener('load', function() {
+    console.log('🔍 Verificando carga de ePayco...');
+    
+    if (typeof ePayco !== 'undefined') {
+        console.log('✅ ePayco cargado correctamente');
+    } else {
+        console.error('❌ ePayco no se cargó correctamente');
+    }
+});
+
+// Auto-abrir si está en query param
+window.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('auto') === 'true') {
+        setTimeout(openEpaycoCheckout, 1000);
+    }
+});
+</script>
+
+{% endblock %}

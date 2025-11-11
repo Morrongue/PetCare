@@ -45,7 +45,8 @@
     <!-- Columna del formulario -->
     <div class="lg:col-span-2">
       <div class="bg-dark-800 border border-dark-700 rounded-xl p-8 shadow-xl">
-        <form method="POST" class="space-y-6" id="appointmentForm">
+        <!-- ✅ CAMBIO 1: Agregar action para ir a prepare_payment -->
+        <form method="POST" action="{% url 'prepare_payment' %}" class="space-y-6" id="appointmentForm">
           {% csrf_token %}
           
           <!-- Pet Selection -->
@@ -136,16 +137,23 @@
             <label for="motivo" class="block text-gray-300 mb-2 font-medium">
               <i class="fas fa-notes-medical text-olive-500 mr-2"></i>Reason for Visit *
             </label>
-            <textarea name="motivo" 
-                      id="motivo" 
-                      rows="4" 
-                      required
-                      placeholder="Describe the reason for the appointment..."
-                      class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
-                             focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
-                             transition-all duration-300 group-hover:border-olive-700 resize-none">{{ cita.motivo|default:'' }}</textarea>
+            <select name="motivo" 
+                    id="motivo" 
+                    required
+                    class="w-full bg-dark-900 border border-dark-600 rounded-lg px-4 py-3 text-white
+                           focus:outline-none focus:ring-2 focus:ring-olive-600 focus:border-transparent
+                           transition-all duration-300 group-hover:border-olive-700">
+              <option value="">-- Select reason --</option>
+              <option value="Consulta general" {% if cita and cita.motivo == 'Consulta general' %}selected{% endif %}>Consulta general - $50,000 COP</option>
+              <option value="Vacunación" {% if cita and cita.motivo == 'Vacunación' %}selected{% endif %}>Vacunación - $30,000 COP</option>
+              <option value="Cirugía" {% if cita and cita.motivo == 'Cirugía' %}selected{% endif %}>Cirugía - $200,000 COP</option>
+              <option value="Emergencia" {% if cita and cita.motivo == 'Emergencia' %}selected{% endif %}>Emergencia - $100,000 COP</option>
+              <option value="Chequeo" {% if cita and cita.motivo == 'Chequeo' %}selected{% endif %}>Chequeo - $40,000 COP</option>
+              <option value="Desparasitación" {% if cita and cita.motivo == 'Desparasitación' %}selected{% endif %}>Desparasitación - $25,000 COP</option>
+              <option value="Baño y peluquería" {% if cita and cita.motivo == 'Baño y peluquería' %}selected{% endif %}>Baño y peluquería - $35,000 COP</option>
+            </select>
             <p class="text-xs text-gray-500 mt-1">
-              <i class="fas fa-info-circle mr-1"></i>Be as specific as possible about symptoms or concerns
+              <i class="fas fa-info-circle mr-1"></i>Select the type of service needed
             </p>
           </div>
 
@@ -173,14 +181,15 @@
 
           <!-- Botones -->
           <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t border-dark-700">
+            <!-- ✅ CAMBIO 2: Botón ahora dice "Continue to Payment" con icono de tarjeta -->
             <button type="submit"
                     id="submitBtn"
                     class="flex-1 bg-gradient-to-r from-olive-700 to-olive-600 hover:from-olive-600 hover:to-olive-500
                            text-white font-semibold py-3 rounded-lg transform hover:scale-[1.02] active:scale-[0.98]
                            transition-all duration-300 shadow-lg hover:shadow-olive-500/50 flex items-center justify-center
                            disabled:opacity-50 disabled:cursor-not-allowed">
-              <i class="fas {% if action == 'Add' %}fa-calendar-check{% else %}fa-save{% endif %} mr-2"></i>
-              {% if action == 'Add' %}Save Appointment{% else %}Save Changes{% endif %}
+              <i class="fas fa-credit-card mr-2"></i>
+              Continue to Payment
             </button>
             
             <a href="{% url 'list_citas' %}"
@@ -224,6 +233,13 @@
               <p class="text-white" id="summaryDate">Select date...</p>
             </div>
           </div>
+          <div class="flex items-start space-x-2">
+            <i class="fas fa-dollar-sign text-green-500 mt-0.5 w-5"></i>
+            <div>
+              <p class="text-gray-500 text-xs">Price</p>
+              <p class="text-white font-bold" id="summaryPrice">Select service...</p>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -236,7 +252,7 @@
         <div class="space-y-3 text-sm">
           <div class="flex items-start space-x-2 text-gray-300">
             <i class="fas fa-check-circle text-olive-500 mt-0.5"></i>
-            <p>Book at least 1 hour in advance</p>
+            <p>Payment required to confirm appointment</p>
           </div>
           <div class="flex items-start space-x-2 text-gray-300">
             <i class="fas fa-check-circle text-olive-500 mt-0.5"></i>
@@ -244,8 +260,35 @@
           </div>
           <div class="flex items-start space-x-2 text-gray-300">
             <i class="fas fa-check-circle text-olive-500 mt-0.5"></i>
-            <p>Describe symptoms in detail</p>
+            <p>Multiple payment methods accepted</p>
           </div>
+        </div>
+      </div>
+
+      <!-- Payment Methods -->
+      <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+        <h3 class="text-lg font-bold text-white mb-4 flex items-center">
+          <i class="fas fa-credit-card text-olive-500 mr-2"></i>Payment Methods
+        </h3>
+        
+        <div class="flex flex-wrap gap-2">
+          <div class="bg-dark-900 px-3 py-2 rounded-lg border border-dark-600 text-xs text-gray-300">
+            💳 Credit/Debit
+          </div>
+          <div class="bg-dark-900 px-3 py-2 rounded-lg border border-dark-600 text-xs text-gray-300">
+            💰 PSE
+          </div>
+          <div class="bg-dark-900 px-3 py-2 rounded-lg border border-dark-600 text-xs text-gray-300">
+            📱 Nequi
+          </div>
+          <div class="bg-dark-900 px-3 py-2 rounded-lg border border-dark-600 text-xs text-gray-300">
+            💵 Cash
+          </div>
+        </div>
+        
+        <div class="mt-4 flex items-center justify-center space-x-2 text-xs text-gray-500">
+          <i class="fas fa-shield-alt text-olive-500"></i>
+          <span>Secure payment by ePayco</span>
         </div>
       </div>
 
@@ -343,6 +386,17 @@
 
 <script>
   $(document).ready(function() {
+    // Prices mapping
+    const prices = {
+      'Consulta general': 50000,
+      'Vacunación': 30000,
+      'Cirugía': 200000,
+      'Emergencia': 100000,
+      'Chequeo': 40000,
+      'Desparasitación': 25000,
+      'Baño y peluquería': 35000
+    };
+
     // Select2
     {% if rol == 'Veterinario' or rol == 'Administrador' %}
       $('#paciente').select2({
@@ -455,9 +509,20 @@
       } else {
         document.getElementById('summaryDate').textContent = 'Select date...';
       }
+
+      // Update price
+      const motivoSelect = document.getElementById('motivo');
+      const motivoValue = motivoSelect.value;
+      if (motivoValue && prices[motivoValue]) {
+        const price = prices[motivoValue];
+        document.getElementById('summaryPrice').textContent = `$${price.toLocaleString()} COP`;
+      } else {
+        document.getElementById('summaryPrice').textContent = 'Select service...';
+      }
     }
 
     $('#paciente, #veterinario').on('change', updateSummary);
+    $('#motivo').on('change', updateSummary);
     fechaInput.addEventListener('change', updateSummary);
     updateSummary();
   });

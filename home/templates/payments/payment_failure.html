@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="max-w-2xl mx-auto px-4 sm:px-6 py-12">
+  
+  <!-- Error Icon -->
+  <div class="text-center mb-8">
+    <div class="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-red-700 to-red-600 rounded-full 
+                flex items-center justify-center shadow-2xl">
+      <i class="fas fa-times text-white text-5xl"></i>
+    </div>
+    <h1 class="text-3xl font-bold text-white mb-2">Payment Failed</h1>
+    <p class="text-gray-400">We couldn't process your payment</p>
+  </div>
+
+  <!-- Error Details -->
+  {% if payment %}
+  <div class="bg-dark-800 border border-red-700/50 rounded-xl p-6 shadow-xl mb-6">
+    <h2 class="text-xl font-bold text-white mb-4 flex items-center">
+      <i class="fas fa-exclamation-triangle text-red-500 mr-2"></i>
+      Transaction Details
+    </h2>
+    
+    <div class="space-y-3">
+      <div class="flex justify-between py-2 border-b border-dark-700">
+        <span class="text-gray-400">Reference</span>
+        <span class="text-white font-mono">{{ payment.ref_payco }}</span>
+      </div>
+      
+      {% if payment.x_response_reason_text %}
+      <div class="py-2">
+        <p class="text-gray-400 text-sm mb-1">Reason:</p>
+        <p class="text-red-400">{{ payment.x_response_reason_text }}</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Common Reasons -->
+  <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl mb-6">
+    <h3 class="text-white font-bold mb-3 flex items-center">
+      <i class="fas fa-question-circle text-yellow-500 mr-2"></i>
+      Common Reasons for Payment Failure
+    </h3>
+    <ul class="space-y-2 text-gray-300 text-sm">
+      <li class="flex items-start">
+        <i class="fas fa-circle text-red-500 mr-2 mt-1" style="font-size: 6px;"></i>
+        <span>Insufficient funds in your account</span>
+      </li>
+      <li class="flex items-start">
+        <i class="fas fa-circle text-red-500 mr-2 mt-1" style="font-size: 6px;"></i>
+        <span>Incorrect card information</span>
+      </li>
+      <li class="flex items-start">
+        <i class="fas fa-circle text-red-500 mr-2 mt-1" style="font-size: 6px;"></i>
+        <span>Card expired or blocked</span>
+      </li>
+      <li class="flex items-start">
+        <i class="fas fa-circle text-red-500 mr-2 mt-1" style="font-size: 6px;"></i>
+        <span>Transaction limit exceeded</span>
+      </li>
+      <li class="flex items-start">
+        <i class="fas fa-circle text-red-500 mr-2 mt-1" style="font-size: 6px;"></i>
+        <span>Bank security rejection</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- What to do -->
+  <div class="bg-blue-900/20 border border-blue-700/50 rounded-xl p-6 mb-6">
+    <h3 class="text-white font-bold mb-3 flex items-center">
+      <i class="fas fa-lightbulb text-blue-400 mr-2"></i>
+      What can you do?
+    </h3>
+    <ul class="space-y-2 text-gray-300 text-sm">
+      <li class="flex items-start">
+        <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+        <span>Verify your card information and try again</span>
+      </li>
+      <li class="flex items-start">
+        <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+        <span>Try using a different payment method</span>
+      </li>
+      <li class="flex items-start">
+        <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+        <span>Contact your bank to authorize the transaction</span>
+      </li>
+      <li class="flex items-start">
+        <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+        <span>If the problem persists, contact us for assistance</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Actions -->
+  <div class="flex flex-col sm:flex-row gap-3 justify-center">
+    <a href="{% url 'add_cita' %}" 
+       class="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-olive-700 to-olive-600 
+              hover:from-olive-600 hover:to-olive-500 text-white font-bold px-8 py-3 rounded-lg
+              transform hover:scale-105 transition-all shadow-lg">
+      <i class="fas fa-redo"></i>
+      <span>Try Again</span>
+    </a>
+    
+    <a href="{% url 'index' %}" 
+       class="inline-flex items-center justify-center space-x-2 bg-dark-900 hover:bg-dark-700 
+              text-gray-300 hover:text-white font-semibold px-8 py-3 rounded-lg
+              border border-dark-600 hover:border-olive-600 transition-all">
+      <i class="fas fa-home"></i>
+      <span>Back to Home</span>
+    </a>
+  </div>
+
+  <!-- Support -->
+  <div class="mt-8 text-center">
+    <p class="text-gray-400 text-sm">
+      Need help? 
+      <a href="mailto:contacto@petcare.com" class="text-olive-400 hover:text-olive-300">
+        Contact our support team
+      </a>
+    </p>
+  </div>
+
+</div>
+
+{% endblock %}

@@ -1,7 +1,12 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+
+
+from django.http import JsonResponse, HttpResponse
+import json
 from django.contrib import messages
-from .models import users, pacientes, veterinarios, citas, historia_clinica
+from .models import users, pacientes, veterinarios, citas, historia_clinica, payments
 from collections import Counter
 from bson import ObjectId
 from datetime import datetime, timedelta
@@ -9,6 +14,14 @@ from datetime import time as dt_time
 import os
 import time 
 import base64
+
+# Importar utilidades de ePayco
+from .payments.epayco_utils import (
+    generate_payment_reference,
+    save_pending_payment,
+    validate_epayco_signature,
+    create_appointment_from_payment,
+)
 
 ROL_FIELD = "Rol"  
 
@@ -2624,14 +2637,6 @@ def list_historias(request):
     })
 
 
-
-
-
-
-
-
-
-
 # -------------------- ELIMINAR HISTORIA CLÍNICA --------------------
 def delete_historia(request, id):
     """Elimina una historia clínica (solo administradores)."""
@@ -2655,7 +2660,266 @@ def delete_historia(request, id):
     return redirect("list_historias")
 
 
+# -------------------- PREPARAR PAGO --------------------
+def prepare_payment(request):
+    """Muestra el resumen de la cita antes del pago"""
+    
+    # Verificar login
+    if "user" not in request.session:
+        messages.warning(request, "Por favor inicia sesión primero.")
+        return redirect("login")
+    
+    if request.method != "POST":
+        return redirect("add_cita")
+    
+    username = request.session.get("user")
+    rol = request.session.get("rol")
+    user = users.find_one({"User": username})
+    
+    if not user:
+        messages.error(request, "Usuario no encontrado.")
+        return redirect("index")
+    
+    user_id = str(user["_id"])
+    
+    # Obtener datos del formulario
+    id_paciente = request.POST.get("paciente")
+    id_veterinario = request.POST.get("veterinario")
+    fecha = request.POST.get("fecha")
+    motivo = request.POST.get("motivo")
+    duracion = int(request.POST.get("duracion", 1))
+    
+    # Validar datos básicos
+    if not all([id_paciente, id_veterinario, fecha, motivo]):
+        messages.error(request, "Por favor completa todos los campos requeridos.")
+        return redirect("add_cita")
+    
+    # Obtener datos de la mascota
+    mascota = pacientes.find_one({"_id": ObjectId(id_paciente)})
+    if not mascota:
+        messages.error(request, "Mascota no encontrada.")
+        return redirect("add_cita")
+    
+    # Obtener datos del veterinario
+    vet = users.find_one({
+        "_id": ObjectId(id_veterinario),
+        "Rol": "Veterinario"
+    })
+    if not vet:
+        messages.error(request, "Veterinario no encontrado.")
+        return redirect("add_cita")
+    
+    # Calcular precio según motivo
+    from django.conf import settings
+    precio = settings.APPOINTMENT_PRICES.get(motivo, settings.DEFAULT_APPOINTMENT_PRICE)
+    
+    # Generar referencia única
+    ref_payco = generate_payment_reference(id_paciente)
+    
+    # Guardar pago pendiente
+    cita_data = {
+        "id_user": user_id,
+        "id_paciente": id_paciente,
+        "id_veterinario": id_veterinario,
+        "fecha": fecha,
+        "motivo": motivo,
+        "duracion": duracion
+    }
+    
+    user_data = {
+        "email": user.get("Email", ""),
+        "name": user.get("User", ""),
+        "phone": user.get("telefono", ""),
+        "doc_type": "CC",
+        "document": ""
+    }
+    
+    payment_id = save_pending_payment(payments, ref_payco, cita_data, user_data, precio)
+    
+    # Formatear fecha para mostrar
+    try:
+        fecha_dt = datetime.strptime(fecha, "%Y-%m-%dT%H:%M")
+        fecha_formatted = fecha_dt.strftime("%d/%m/%Y")
+        hora_formatted = fecha_dt.strftime("%I:%M %p")
+    except:
+        fecha_formatted = fecha
+        hora_formatted = ""
+    
+    # Preparar contexto para la página de pago
+    context = {
+        "rol": rol,
+        "username": username,
+        "mascota_nombre": mascota.get("nombre", "Unknown"),
+        "mascota_especie": mascota.get("especie", "Unknown"),
+        "veterinario_nombre": vet.get("nombre", "Unknown"),
+        "veterinario_especialidad": vet.get("especialidad", ""),
+        "fecha": fecha_formatted,
+        "hora": hora_formatted,
+        "motivo": motivo,
+        "duracion": duracion,
+        "precio": precio,
+        "ref_payco": ref_payco,
+        "user_email": user.get("Email", ""),
+        "user_name": user.get("User", ""),
+        "user_phone": user.get("telefono", ""),
+        "EPAYCO_PUBLIC_KEY": settings.EPAYCO_PUBLIC_KEY,
+        "EPAYCO_TEST_MODE": "true" if settings.EPAYCO_TEST_MODE else "false",
+        "EPAYCO_CONFIRMATION_URL": settings.EPAYCO_CONFIRMATION_URL,
+        "EPAYCO_RESPONSE_URL": settings.EPAYCO_RESPONSE_URL,
+    }
+    
+    return render(request, "payments/payment_form.html", context)
 
 
+# -------------------- CONFIRMACIÓN DE EPAYCO (WEBHOOK) --------------------
+@csrf_exempt
+def epayco_confirmation(request):
+    """Recibe confirmación de ePayco (servidor a servidor)"""
+    if request.method != "POST":
+        return HttpResponse(status=405)
+    
+    try:
+        # ePayco envía los datos como POST form data
+        data = request.POST.dict()
+        
+        # Log para debugging
+        print(f"📥 Confirmación recibida de ePayco:")
+        print(json.dumps(data, indent=2))
+        
+        # Validar firma
+        from django.conf import settings
+        if not validate_epayco_signature(
+            data,
+            settings.EPAYCO_CUST_ID,
+            settings.EPAYCO_P_KEY
+        ):
+            print("❌ Firma inválida")
+            return HttpResponse("Invalid signature", status=400)
+        
+        # Obtener datos importantes
+        ref_payco = data.get('x_ref_payco')
+        x_response = data.get('x_response')
+        x_cod_response = data.get('x_cod_response')
+        
+        print(f"✅ Firma válida - Ref: {ref_payco}, Response: {x_response}")
+        
+        # Actualizar registro de pago
+        payments.update_one(
+            {"ref_payco": ref_payco},
+            {
+                "$set": {
+                    "x_transaction_id": data.get('x_transaction_id'),
+                    "x_response": x_response,
+                    "x_approval_code": data.get('x_approval_code'),
+                    "x_response_reason_text": data.get('x_response_reason_text'),
+                    "x_franchise": data.get('x_franchise'),
+                    "x_bank_name": data.get('x_bank_name'),
+                    "x_cod_response": x_cod_response,
+                    "x_cod_transaction_state": data.get('x_cod_transaction_state'),
+                    "payment_date": data.get('x_transaction_date'),
+                    "updated_at": datetime.now().isoformat(),
+                    "epayco_response": data
+                }
+            }
+        )
+        
+        # Si el pago fue aceptado (código 1), crear la cita
+        if x_cod_response == "1" and x_response == "Aceptada":
+            cita_id = create_appointment_from_payment(citas, payments, ref_payco)
+            if cita_id:
+                print(f"✅ Cita creada: {cita_id}")
+        
+        return HttpResponse(status=200)
+    
+    except Exception as e:
+        print(f"❌ Error en confirmación ePayco: {e}")
+        import traceback
+        traceback.print_exc()
+        return HttpResponse(status=500)
 
 
+# -------------------- RESPUESTA AL USUARIO --------------------
+@csrf_exempt
+def epayco_response(request):
+    """Página donde regresa el usuario después de pagar"""
+    ref_payco = request.GET.get('ref_payco')
+    
+    username = request.session.get("user")
+    rol = request.session.get("rol", "Cliente")
+    
+    if ref_payco:
+        payment = payments.find_one({"ref_payco": ref_payco})
+        
+        if payment:
+            x_response = payment.get('x_response', 'Pendiente')
+            
+            if x_response == 'Aceptada':
+                cita = citas.find_one({"ref_payco": ref_payco})
+                return render(request, 'payments/payment_success.html', {
+                    'payment': payment,
+                    'cita': cita,
+                    'rol': rol,
+                    'username': username
+                })
+            elif x_response == 'Rechazada':
+                return render(request, 'payments/payment_failure.html', {
+                    'payment': payment,
+                    'rol': rol,
+                    'username': username
+                })
+            else:
+                return render(request, 'payments/payment_pending.html', {
+                    'payment': payment,
+                    'rol': rol,
+                    'username': username
+                })
+    
+    # Si no hay ref_payco o no se encuentra el pago
+    return render(request, 'payments/payment_pending.html', {
+        'rol': rol,
+        'username': username
+    })
+
+
+# -------------------- PÁGINA DE ÉXITO --------------------
+def payment_success(request, ref_payco):
+    """Página de éxito después del pago"""
+    
+    # Verificar login
+    if "user" not in request.session:
+        messages.warning(request, "Por favor inicia sesión primero.")
+        return redirect("login")
+    
+    payment = payments.find_one({"ref_payco": ref_payco})
+    cita = citas.find_one({"ref_payco": ref_payco}) if payment else None
+    
+    username = request.session.get("user")
+    rol = request.session.get("rol")
+    
+    return render(request, 'payments/payment_success.html', {
+        'payment': payment,
+        'cita': cita,
+        'rol': rol,
+        'username': username
+    })
+
+
+# -------------------- PÁGINA DE FALLO --------------------
+def payment_failure(request, ref_payco):
+    """Página de fallo después del pago"""
+    
+    # Verificar login
+    if "user" not in request.session:
+        messages.warning(request, "Por favor inicia sesión primero.")
+        return redirect("login")
+    
+    payment = payments.find_one({"ref_payco": ref_payco})
+    
+    username = request.session.get("user")
+    rol = request.session.get("rol")
+    
+    return render(request, 'payments/payment_failure.html', {
+        'payment': payment,
+        'rol': rol,
+        'username': username
+    })
