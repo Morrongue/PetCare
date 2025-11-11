@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="max-w-2xl mx-auto px-4 sm:px-6 py-12">
+  
+  <!-- Pending Icon -->
+  <div class="text-center mb-8">
+    <div class="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-yellow-700 to-yellow-600 rounded-full 
+                flex items-center justify-center shadow-2xl animate-pulse">
+      <i class="fas fa-hourglass-half text-white text-5xl"></i>
+    </div>
+    <h1 class="text-3xl font-bold text-white mb-2">Payment Pending</h1>
+    <p class="text-gray-400">Your payment is being processed</p>
+  </div>
+
+  <!-- Payment Details -->
+  {% if payment %}
+  <div class="bg-dark-800 border border-yellow-700/50 rounded-xl p-6 shadow-xl mb-6">
+    <h2 class="text-xl font-bold text-white mb-4 flex items-center">
+      <i class="fas fa-clock text-yellow-500 mr-2"></i>
+      Transaction Details
+    </h2>
+    
+    <div class="space-y-3">
+      <div class="flex justify-between py-2 border-b border-dark-700">
+        <span class="text-gray-400">Reference</span>
+        <span class="text-white font-mono">{{ payment.ref_payco }}</span>
+      </div>
+      
+      <div class="flex justify-between py-2 border-b border-dark-700">
+        <span class="text-gray-400">Amount</span>
+        <span class="text-yellow-400 font-bold">${{ payment.amount|floatformat:0 }} COP</span>
+      </div>
+      
+      {% if payment.x_franchise %}
+      <div class="flex justify-between py-2 border-b border-dark-700">
+        <span class="text-gray-400">Payment Method</span>
+        <span class="text-white">{{ payment.x_franchise }}</span>
+      </div>
+      {% endif %}
+
+      {% if payment.motivo %}
+      <div class="flex justify-between py-2 border-b border-dark-700">
+        <span class="text-gray-400">Service</span>
+        <span class="text-white">{{ payment.motivo }}</span>
+      </div>
+      {% endif %}
+
+      <div class="flex justify-between py-2">
+        <span class="text-gray-400">Status</span>
+        <span class="text-yellow-400 font-semibold flex items-center">
+          <i class="fas fa-spinner fa-spin mr-2"></i>
+          Pending
+        </span>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Information -->
+  <div class="bg-yellow-900/20 border border-yellow-700/50 rounded-xl p-6 mb-6">
+    <h3 class="text-white font-bold mb-3 flex items-center">
+      <i class="fas fa-info-circle text-yellow-400 mr-2"></i>
+      What does this mean?
+    </h3>
+    <ul class="space-y-2 text-gray-300 text-sm">
+      <li class="flex items-start">
+        <i class="fas fa-circle text-yellow-500 mr-2 mt-1" style="font-size: 6px;"></i>
+        <span>Your payment is being verified by the payment processor</span>
+      </li>
+      <li class="flex items-start">
+        <i class="fas fa-circle text-yellow-500 mr-2 mt-1" style="font-size: 6px;"></i>
+        <span>This usually takes a few minutes, but can take up to 24 hours</span>
+      </li>
+      <li class="flex items-start">
+        <i class="fas fa-circle text-yellow-500 mr-2 mt-1" style="font-size: 6px;"></i>
+        <span>You will receive a confirmation email once the payment is approved</span>
+      </li>
+      <li class="flex items-start">
+        <i class="fas fa-circle text-yellow-500 mr-2 mt-1" style="font-size: 6px;"></i>
+        <span>If using PSE or cash payment, follow the instructions provided by ePayco</span>
+      </li>
+      <li class="flex items-start">
+        <i class="fas fa-circle text-yellow-500 mr-2 mt-1" style="font-size: 6px;"></i>
+        <span>For cash payments, you have 24 hours to complete the payment at authorized locations</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- What to do -->
+  <div class="bg-blue-900/20 border border-blue-700/50 rounded-xl p-6 mb-6">
+    <h3 class="text-white font-bold mb-3 flex items-center">
+      <i class="fas fa-lightbulb text-blue-400 mr-2"></i>
+      What should you do?
+    </h3>
+    <ul class="space-y-2 text-gray-300 text-sm">
+      <li class="flex items-start">
+        <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+        <span>Keep this reference number safe: <strong class="text-white">{{ payment.ref_payco|default:"N/A" }}</strong></span>
+      </li>
+      <li class="flex items-start">
+        <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+        <span>Check your email for payment confirmation and instructions</span>
+      </li>
+      <li class="flex items-start">
+        <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+        <span>You can check the appointment status in "My Appointments"</span>
+      </li>
+      <li class="flex items-start">
+        <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+        <span>If payment is not confirmed within 24 hours, contact us</span>
+      </li>
+      <li class="flex items-start">
+        <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+        <span>For PSE: Complete the payment process in your bank's website</span>
+      </li>
+      <li class="flex items-start">
+        <i class="fas fa-check text-green-500 mr-2 mt-1"></i>
+        <span>For cash: Visit an authorized payment point with your reference number</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Payment Methods Info -->
+  <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 mb-6">
+    <h3 class="text-white font-bold mb-3 flex items-center">
+      <i class="fas fa-clock text-olive-500 mr-2"></i>
+      Processing Times
+    </h3>
+    <div class="space-y-2 text-sm">
+      <div class="flex justify-between py-2 border-b border-dark-700">
+        <span class="text-gray-400">💳 Credit/Debit Card</span>
+        <span class="text-white">Instant - 5 minutes</span>
+      </div>
+      <div class="flex justify-between py-2 border-b border-dark-700">
+        <span class="text-gray-400">💰 PSE</span>
+        <span class="text-white">5 - 30 minutes</span>
+      </div>
+      <div class="flex justify-between py-2 border-b border-dark-700">
+        <span class="text-gray-400">📱 Nequi/Daviplata</span>
+        <span class="text-white">Instant - 10 minutes</span>
+      </div>
+      <div class="flex justify-between py-2">
+        <span class="text-gray-400">💵 Cash (Efecty/Baloto)</span>
+        <span class="text-white">Up to 24 hours</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="flex flex-col sm:flex-row gap-3 justify-center">
+    <a href="{% url 'list_citas' %}" 
+       class="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-olive-700 to-olive-600 
+              hover:from-olive-600 hover:to-olive-500 text-white font-bold px-8 py-3 rounded-lg
+              transform hover:scale-105 transition-all shadow-lg">
+      <i class="fas fa-list"></i>
+      <span>View My Appointments</span>
+    </a>
+    
+    <a href="{% url 'index' %}" 
+       class="inline-flex items-center justify-center space-x-2 bg-dark-900 hover:bg-dark-700 
+              text-gray-300 hover:text-white font-semibold px-8 py-3 rounded-lg
+              border border-dark-600 hover:border-olive-600 transition-all">
+      <i class="fas fa-home"></i>
+      <span>Back to Home</span>
+    </a>
+  </div>
+
+  <!-- Support -->
+  <div class="mt-8 text-center">
+    <p class="text-gray-400 text-sm mb-2">
+      Need help with your payment?
+    </p>
+    <div class="flex flex-col sm:flex-row gap-3 justify-center text-sm">
+      <a href="mailto:contacto@petcare.com" class="text-olive-400 hover:text-olive-300 flex items-center justify-center">
+        <i class="fas fa-envelope mr-2"></i>
+        Email us: contacto@petcare.com
+      </a>
+      <span class="hidden sm:inline text-gray-600">|</span>
+      <a href="tel:+573001234567" class="text-olive-400 hover:text-olive-300 flex items-center justify-center">
+        <i class="fas fa-phone mr-2"></i>
+        Call us: +57 300 123 4567
+      </a>
+    </div>
+  </div>
+
+  <!-- Auto-refresh notice -->
+  <div class="mt-8 text-center">
+    <div class="inline-flex items-center space-x-2 text-xs text-gray-500 bg-dark-800 px-4 py-2 rounded-full border border-dark-700">
+      <i class="fas fa-sync-alt fa-spin"></i>
+      <span>Checking payment status... Reloading in <span id="countdown">30</span>s</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- Auto-refresh script -->
+<script>
+// Auto-refresh cada 30 segundos para verificar si el pago se confirmó
+let seconds = 30;
+const countdownElement = document.getElementById('countdown');
+
+const intervalId = setInterval(function() {
+  seconds--;
+  if (countdownElement) {
+    countdownElement.textContent = seconds;
+  }
+  
+  if (seconds <= 0) {
+    clearInterval(intervalId);
+    console.log('🔄 Recargando página para verificar estado del pago...');
+    location.reload();
+  }
+}, 1000);
+</script>
+
+<style>
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+</style>
+
+{% endblock %}
