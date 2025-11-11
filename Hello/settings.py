@@ -89,7 +89,7 @@ EPAYCO_RESPONSE_URL = f'{BASE_URL}/pagos/respuesta/'
 
 # Precios por tipo de consulta (en COP)
 APPOINTMENT_PRICES = {
-    'Consulta general': 1000,
+    'Consulta general': 5000,
     'Vacunación': 30000,
     'Cirugía': 200000,
     'Emergencia': 100000,
@@ -104,7 +104,7 @@ EPAYCO_CURRENCY = 'COP'
 
 # Información del negocio
 BUSINESS_NAME = 'Veterinaria PetCare'
-BUSINESS_EMAIL = 'contacto@petcare.com'
+BUSINESS_EMAIL = 'santiagotabina@gmail.com'
 BUSINESS_NIT = '900123456-7'  # Cambiar por tu NIT real
 BUSINESS_PHONE = '3001234567'  # Cambiar por tu teléfono real
 BUSINESS_ADDRESS = 'Calle 123 #45-67'  # Cambiar por tu dirección real
