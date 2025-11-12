@@ -1,8 +1,6 @@
 from django.shortcuts import render, redirect
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
-
-
 from django.http import JsonResponse, HttpResponse
 import json
 from django.contrib import messages
@@ -15,7 +13,7 @@ import os
 import time 
 import base64
 
-# Importar utilidades de ePayco
+# utilidades de ePayco
 from .payments.epayco_utils import (
     generate_payment_reference,
     save_pending_payment,
@@ -2772,7 +2770,6 @@ def prepare_payment(request):
 
 
 # -------------------- CONFIRMACIÓN DE EPAYCO (WEBHOOK) --------------------
-@csrf_exempt
 def epayco_confirmation(request):
     """Recibe confirmación de ePayco (servidor a servidor)"""
     if request.method != "POST":
@@ -2782,33 +2779,44 @@ def epayco_confirmation(request):
         # ePayco envía los datos como POST form data
         data = request.POST.dict()
         
-        # Log para debugging
-        print(f"📥 Confirmación recibida de ePayco:")
+        # Log completo para debugging
+        print("=" * 60)
+        print("📥 CONFIRMACIÓN RECIBIDA DE EPAYCO")
+        print("=" * 60)
         print(json.dumps(data, indent=2))
+        print("=" * 60)
         
         # Validar firma
         from django.conf import settings
-        if not validate_epayco_signature(
+        
+        is_valid = validate_epayco_signature(
             data,
             settings.EPAYCO_CUST_ID,
             settings.EPAYCO_P_KEY
-        ):
-            print("❌ Firma inválida")
+        )
+        
+        if not is_valid:
+            print("❌ FIRMA INVÁLIDA - Rechazando transacción")
             return HttpResponse("Invalid signature", status=400)
         
         # Obtener datos importantes
         ref_payco = data.get('x_ref_payco')
         x_response = data.get('x_response')
         x_cod_response = data.get('x_cod_response')
+        x_transaction_id = data.get('x_transaction_id')
         
-        print(f"✅ Firma válida - Ref: {ref_payco}, Response: {x_response}")
+        print(f"\n📊 DATOS DE LA TRANSACCIÓN:")
+        print(f"   Referencia: {ref_payco}")
+        print(f"   Transaction ID: {x_transaction_id}")
+        print(f"   Respuesta: {x_response}")
+        print(f"   Código: {x_cod_response}")
         
         # Actualizar registro de pago
-        payments.update_one(
+        update_result = payments.update_one(
             {"ref_payco": ref_payco},
             {
                 "$set": {
-                    "x_transaction_id": data.get('x_transaction_id'),
+                    "x_transaction_id": x_transaction_id,
                     "x_response": x_response,
                     "x_approval_code": data.get('x_approval_code'),
                     "x_response_reason_text": data.get('x_response_reason_text'),
@@ -2823,16 +2831,34 @@ def epayco_confirmation(request):
             }
         )
         
+        print(f"\n📝 Pago actualizado: {update_result.modified_count} documentos")
+        
         # Si el pago fue aceptado (código 1), crear la cita
         if x_cod_response == "1" and x_response == "Aceptada":
+            print(f"\n✅ PAGO ACEPTADO - Creando cita...")
+            
             cita_id = create_appointment_from_payment(citas, payments, ref_payco)
+            
             if cita_id:
-                print(f"✅ Cita creada: {cita_id}")
+                print(f"✅ Cita creada exitosamente: {cita_id}")
+                print(f"✅ PROCESO COMPLETADO CON ÉXITO")
+            else:
+                print(f"❌ ERROR: No se pudo crear la cita")
+        elif x_cod_response == "2":
+            print(f"\n❌ PAGO RECHAZADO: {data.get('x_response_reason_text')}")
+        elif x_cod_response == "3":
+            print(f"\n⏳ PAGO PENDIENTE")
+        elif x_cod_response == "4":
+            print(f"\n❌ PAGO FALLIDO: {data.get('x_response_reason_text')}")
+        
+        print("=" * 60)
         
         return HttpResponse(status=200)
     
     except Exception as e:
-        print(f"❌ Error en confirmación ePayco: {e}")
+        print("=" * 60)
+        print(f"❌ ERROR EN CONFIRMACIÓN EPAYCO: {e}")
+        print("=" * 60)
         import traceback
         traceback.print_exc()
         return HttpResponse(status=500)
