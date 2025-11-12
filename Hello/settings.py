@@ -89,7 +89,7 @@ EPAYCO_RESPONSE_URL = f'{BASE_URL}/pagos/respuesta/'
 
 # Precios por tipo de consulta (en COP)
 APPOINTMENT_PRICES = {
-    'Consulta general': 2000,
+    'Consulta general': 5000,
     'Vacunación': 30000,
     'Cirugía': 200000,
     'Emergencia': 100000,
