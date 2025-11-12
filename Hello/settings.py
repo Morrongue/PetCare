@@ -80,7 +80,7 @@ EPAYCO_CUST_ID = '1567292'
 EPAYCO_P_KEY = '4a1632e025a043f2eac033b1083f27fcdabe7293'
 
 # Modo (False = Production)
-EPAYCO_TEST_MODE = False
+EPAYCO_TEST_MODE = True
 
 # URLs de callback (PRODUCCIÓN - Render)
 BASE_URL = 'https://petcare-r8tf.onrender.com'
