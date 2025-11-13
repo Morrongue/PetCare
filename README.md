@@ -608,12 +608,12 @@ SOFTWARE.
 
 ---
 
-## 👨‍💻 Autor
+## 👨‍💻 Autores
 
-**PIZZO**
-- Desarrollador Full Stack
+**Pizzeto y Sofia**
+- Desarrolladores Full Stack
 - Especializado en Django y MongoDB
-- Bogotá, Colombia 🇨🇴
+- La Virginia-Risaralda y Cartago-Valle del Cauca, Colombia 🇨🇴
 
 ---
 
