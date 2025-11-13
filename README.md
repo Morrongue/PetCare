@@ -564,10 +564,8 @@ Esta es la estructura completa y organizada de tu proyecto PetCare! 🐾✨
 ### Versión 2.0 (Planificado)
 - [ ] Sistema de notificaciones por email/SMS
 - [ ] Integración con pasarela de pago real (Stripe/PayU)
-- [ ] Generación de reportes PDF
 - [ ] Sistema de inventario de medicamentos
 - [ ] Historial médico detallado con imágenes
-- [ ] Calendario compartido entre veterinarios
 - [ ] App móvil (React Native)
 - [ ] API REST para integraciones
 
@@ -576,6 +574,7 @@ Esta es la estructura completa y organizada de tu proyecto PetCare! 🐾✨
 - [x] Dashboard responsivo ✅
 - [x] Observaciones médicas ✅
 - [x] Gestión completa de citas ✅
+- [x] Generación de reportes PDF ✅
 
 ---
 
