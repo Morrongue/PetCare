@@ -1,10 +1,10 @@
 <!-- templates/includes/sidebar.html -->
-<div id="sidebar" class="w-72 bg-gradient-to-b from-dark-800 to-dark-900 text-white p-6 space-y-6 
-     transition-transform duration-300 ease-in-out fixed h-full overflow-y-auto shadow-2xl border-r border-dark-700
-     lg:translate-x-0 -translate-x-full z-20">
+<div id="sidebar" class="w-72 bg-gradient-to-b from-dark-800 to-dark-900 text-white
+     transition-transform duration-300 ease-in-out fixed inset-y-0 left-0 shadow-2xl border-r border-dark-700
+     lg:translate-x-0 -translate-x-full z-20 flex flex-col">
   
-  <!-- Logo y título -->
-  <div class="text-center pb-6 border-b border-dark-700">
+  <!-- Logo y título (fijo arriba) -->
+  <div class="text-center p-6 border-b border-dark-700 flex-shrink-0">
     <div class="w-20 h-20 mx-auto mb-3 bg-olive-700 rounded-full flex items-center justify-center shadow-lg">
       <i class="fas fa-paw text-3xl text-white"></i>
     </div>
@@ -12,8 +12,9 @@
     <p class="text-xs text-gray-400 mt-1">Veterinary Clinic System</p>
   </div>
 
-  <!-- Navegación -->
-  <nav class="space-y-2">
+  <!-- Navegación (área scrolleable) -->
+  <nav class="flex-1 overflow-y-auto px-6 py-4 space-y-2">
+    
     <!-- Dashboard -->
     <a href="{% url 'index' %}" 
        class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
@@ -32,7 +33,7 @@
       <span class="font-medium group-hover:translate-x-1 transition-transform">My Pets</span>
     </a>
 
-    <!-- Medical History (NUEVO - Para todos los roles) -->
+    <!-- Medical History -->
     <a href="{% url 'list_historias' %}" 
        class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
               hover:bg-olive-700 transition-all duration-300
@@ -122,10 +123,14 @@
         <span class="font-medium group-hover:translate-x-1 transition-transform">My Appointments</span>
       </a>
     {% endif %}
+
+    <!-- Espaciado extra al final para que logout sea visible -->
+    <div class="h-20"></div>
+
   </nav>
 
-  <!-- Footer del sidebar -->
-  <div class="absolute bottom-0 left-0 right-0 p-6 border-t border-dark-700 bg-dark-900">
+  <!-- Footer del sidebar (fijo abajo) -->
+  <div class="p-6 border-t border-dark-700 bg-dark-900 flex-shrink-0">
     <a href="{% url 'logout' %}" 
        class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
               bg-red-900/30 hover:bg-red-900 transition-all duration-300">
@@ -161,3 +166,30 @@
   
   observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
 </script>
+
+<!-- Estilos para scrollbar -->
+<style>
+  /* Custom scrollbar para navegación */
+  nav::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  nav::-webkit-scrollbar-track {
+    background: #0F172A;
+  }
+
+  nav::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 3px;
+  }
+
+  nav::-webkit-scrollbar-thumb:hover {
+    background: #6B8E23;
+  }
+
+  /* Para Firefox */
+  nav {
+    scrollbar-width: thin;
+    scrollbar-color: #334155 #0F172A;
+  }
+</style>

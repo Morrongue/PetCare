@@ -232,35 +232,33 @@
 
                 <!-- Actions -->
                 <td class="px-4 sm:px-6 py-3">
-                  <div class="flex items-center justify-center space-x-1 sm:space-x-2">
-                    <!-- Edit -->
+            
+                <div class="flex items-center justify-end pt-3 border-t border-dark-700 gap-2">
                     <a href="{% url 'admin_users_edit' usuario.id %}" 
-                       class="bg-olive-700 hover:bg-olive-600 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg
-                              transition-colors duration-300 text-xs sm:text-sm font-medium inline-flex items-center"
-                       title="Edit user">
-                      <i class="fas fa-edit sm:mr-1"></i>
-                      <span class="hidden sm:inline">Edit</span>
+                      class="flex-1 sm:flex-none bg-olive-700 hover:bg-olive-600 text-white px-3 py-2 rounded-lg
+                              transition-colors duration-300 text-xs font-medium inline-flex items-center justify-center"
+                      title="Edit user">
+                      <i class="fas fa-edit mr-1"></i>
+                      <span>Edit</span>
                     </a>
                     
-                    <!-- Reset Password -->
                     <a href="{% url 'admin_users_reset_password' usuario.id %}"
-                       class="bg-blue-700 hover:bg-blue-600 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg
-                              transition-colors duration-300 text-xs sm:text-sm font-medium inline-flex items-center"
-                       title="Reset password">
-                      <i class="fas fa-key sm:mr-1"></i>
-                      <span class="hidden sm:inline">Reset</span>
+                      class="flex-1 sm:flex-none bg-blue-700 hover:bg-blue-600 text-white px-3 py-2 rounded-lg
+                              transition-colors duration-300 text-xs font-medium inline-flex items-center justify-center"
+                      title="Reset password">
+                      <i class="fas fa-key mr-1"></i>
+                      <span>Reset</span>
                     </a>
                     
-                    <!-- Delete -->
                     <a href="{% url 'admin_users_delete' usuario.id %}" 
-                       onclick="return confirm('Are you sure you want to delete {{ usuario.User }}? This action cannot be undone.');"
-                       class="bg-red-900/50 hover:bg-red-900 text-red-300 hover:text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg
-                              transition-colors duration-300 text-xs sm:text-sm font-medium border border-red-700 inline-flex items-center"
-                       title="Delete user">
-                      <i class="fas fa-trash-alt sm:mr-1"></i>
-                      <span class="hidden sm:inline">Delete</span>
+                      onclick="return confirm('Are you sure you want to delete {{ usuario.User }}? This action cannot be undone.');"
+                      class="flex-1 sm:flex-none bg-red-900/50 hover:bg-red-900 text-red-300 hover:text-white px-3 py-2 rounded-lg
+                              transition-colors duration-300 text-xs font-medium border border-red-700 inline-flex items-center justify-center"
+                      title="Delete user">
+                      <i class="fas fa-trash-alt mr-1"></i>
+                      <span>Delete</span>
                     </a>
-                  </div>
+                </div>
                 </td>
               </tr>
             {% endfor %}
