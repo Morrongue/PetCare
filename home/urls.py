@@ -52,10 +52,7 @@ urlpatterns = [
     path('historias/delete/<str:id>/', views.delete_historia, name='delete_historia'),
 
         # ========== PAYMENTS ==========
- 
 
-
-    # A:
     path('pagos/preparar/', views.prepare_payment_demo, name='prepare_payment'),
     path('pagos/procesar-demo/', views.process_demo_payment, name='process_demo_payment'),
     path('pagos/completar/<str:cita_id>/', views.complete_pending_payment, name='complete_pending_payment'),

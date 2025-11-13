@@ -1,141 +1,141 @@
 <!-- templates/includes/sidebar.html -->
-<div id="sidebar" class="w-72 bg-gradient-to-b from-dark-800 to-dark-900 text-white
+<div id="sidebar" class="w-64 bg-gradient-to-b from-dark-800 to-dark-900 text-white
      transition-transform duration-300 ease-in-out fixed inset-y-0 left-0 shadow-2xl border-r border-dark-700
-     lg:translate-x-0 -translate-x-full z-20 flex flex-col">
+     lg:translate-x-0 -translate-x-full z-20 flex flex-col overflow-hidden">
   
-  <!-- Logo y título (fijo arriba) -->
-  <div class="text-center p-6 border-b border-dark-700 flex-shrink-0">
-    <div class="w-20 h-20 mx-auto mb-3 bg-olive-700 rounded-full flex items-center justify-center shadow-lg">
-      <i class="fas fa-paw text-3xl text-white"></i>
+  <!-- Logo y título COMPACTO (fijo arriba) -->
+  <div class="text-center p-4 border-b border-dark-700 flex-shrink-0">
+    <div class="w-14 h-14 mx-auto mb-2 bg-olive-700 rounded-full flex items-center justify-center shadow-lg">
+      <i class="fas fa-paw text-2xl text-white"></i>
     </div>
-    <h2 class="text-2xl font-bold text-olive-400">PetCare</h2>
-    <p class="text-xs text-gray-400 mt-1">Veterinary Clinic System</p>
+    <h2 class="text-xl font-bold text-olive-400">PetCare</h2>
+    <p class="text-xs text-gray-400 mt-0.5">Veterinary System</p>
   </div>
 
-  <!-- Navegación (área scrolleable) -->
-  <nav class="flex-1 overflow-y-auto px-6 py-4 space-y-2">
+  <!-- Navegación COMPACTA (área scrolleable) -->
+  <nav class="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3 space-y-1.5">
     
     <!-- Dashboard -->
     <a href="{% url 'index' %}" 
-       class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+       class="group flex items-center space-x-2.5 px-3 py-2.5 rounded-lg text-sm
               hover:bg-olive-700 transition-all duration-300 
               {% if request.path == '/' %}bg-olive-700 shadow-lg{% endif %}">
-      <i class="fas fa-chart-line text-olive-400 group-hover:text-white text-lg w-5"></i>
-      <span class="font-medium group-hover:translate-x-1 transition-transform">Dashboard</span>
+      <i class="fas fa-chart-line text-olive-400 group-hover:text-white w-4 flex-shrink-0"></i>
+      <span class="font-medium group-hover:translate-x-1 transition-transform truncate">Dashboard</span>
     </a>
 
     <!-- My Pets -->
     <a href="{% url 'list_pacientes' %}" 
-       class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+       class="group flex items-center space-x-2.5 px-3 py-2.5 rounded-lg text-sm
               hover:bg-olive-700 transition-all duration-300
               {% if 'patients' in request.path %}bg-olive-700 shadow-lg{% endif %}">
-      <i class="fas fa-dog text-olive-400 group-hover:text-white text-lg w-5"></i>
-      <span class="font-medium group-hover:translate-x-1 transition-transform">My Pets</span>
+      <i class="fas fa-dog text-olive-400 group-hover:text-white w-4 flex-shrink-0"></i>
+      <span class="font-medium group-hover:translate-x-1 transition-transform truncate">My Pets</span>
     </a>
 
     <!-- Medical History -->
     <a href="{% url 'list_historias' %}" 
-       class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+       class="group flex items-center space-x-2.5 px-3 py-2.5 rounded-lg text-sm
               hover:bg-olive-700 transition-all duration-300
               {% if 'medical-history' in request.path %}bg-olive-700 shadow-lg{% endif %}">
-      <i class="fas fa-file-medical text-olive-400 group-hover:text-white text-lg w-5"></i>
-      <span class="font-medium group-hover:translate-x-1 transition-transform">Medical History</span>
+      <i class="fas fa-file-medical text-olive-400 group-hover:text-white w-4 flex-shrink-0"></i>
+      <span class="font-medium group-hover:translate-x-1 transition-transform truncate">Medical History</span>
     </a>
 
     {% if rol == 'Administrador' %}
-      <!-- Separador -->
-      <div class="pt-4 pb-2">
-        <p class="text-xs text-gray-500 uppercase tracking-wider px-4">Administration</p>
+      <!-- Separador COMPACTO -->
+      <div class="pt-3 pb-1.5">
+        <p class="text-xs text-gray-500 uppercase tracking-wider px-3 truncate">Admin</p>
       </div>
 
       <!-- Veterinarians -->
       <a href="{% url 'list_veterinarios' %}" 
-         class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+         class="group flex items-center space-x-2.5 px-3 py-2.5 rounded-lg text-sm
                 hover:bg-olive-700 transition-all duration-300
                 {% if 'vets' in request.path %}bg-olive-700 shadow-lg{% endif %}">
-        <i class="fas fa-user-md text-olive-400 group-hover:text-white text-lg w-5"></i>
-        <span class="font-medium group-hover:translate-x-1 transition-transform">Veterinarians</span>
+        <i class="fas fa-user-md text-olive-400 group-hover:text-white w-4 flex-shrink-0"></i>
+        <span class="font-medium group-hover:translate-x-1 transition-transform truncate">Veterinarians</span>
       </a>
 
       <!-- Users -->
       <a href="{% url 'admin_users_list' %}" 
-         class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+         class="group flex items-center space-x-2.5 px-3 py-2.5 rounded-lg text-sm
                 hover:bg-olive-700 transition-all duration-300
                 {% if 'panel/users' in request.path %}bg-olive-700 shadow-lg{% endif %}">
-        <i class="fas fa-users text-olive-400 group-hover:text-white text-lg w-5"></i>
-        <span class="font-medium group-hover:translate-x-1 transition-transform">Manage Users</span>
+        <i class="fas fa-users text-olive-400 group-hover:text-white w-4 flex-shrink-0"></i>
+        <span class="font-medium group-hover:translate-x-1 transition-transform truncate">Manage Users</span>
       </a>
 
       <!-- Appointments -->
       <a href="{% url 'list_citas' %}" 
-         class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+         class="group flex items-center space-x-2.5 px-3 py-2.5 rounded-lg text-sm
                 hover:bg-olive-700 transition-all duration-300
                 {% if 'appointments' in request.path %}bg-olive-700 shadow-lg{% endif %}">
-        <i class="fas fa-calendar-check text-olive-400 group-hover:text-white text-lg w-5"></i>
-        <span class="font-medium group-hover:translate-x-1 transition-transform">Appointments</span>
+        <i class="fas fa-calendar-check text-olive-400 group-hover:text-white w-4 flex-shrink-0"></i>
+        <span class="font-medium group-hover:translate-x-1 transition-transform truncate">Appointments</span>
       </a>
 
       <!-- Reports -->
       <a href="{% url 'reports' %}" 
-         class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+         class="group flex items-center space-x-2.5 px-3 py-2.5 rounded-lg text-sm
                 hover:bg-olive-700 transition-all duration-300
                 {% if 'reports' in request.path %}bg-olive-700 shadow-lg{% endif %}">
-        <i class="fas fa-chart-bar text-olive-400 group-hover:text-white text-lg w-5"></i>
-        <span class="font-medium group-hover:translate-x-1 transition-transform">Reports</span>
+        <i class="fas fa-chart-bar text-olive-400 group-hover:text-white w-4 flex-shrink-0"></i>
+        <span class="font-medium group-hover:translate-x-1 transition-transform truncate">Reports</span>
       </a>
 
     {% elif rol == 'Veterinario' %}
-      <!-- Separador -->
-      <div class="pt-4 pb-2">
-        <p class="text-xs text-gray-500 uppercase tracking-wider px-4">Veterinarian Tools</p>
+      <!-- Separador COMPACTO -->
+      <div class="pt-3 pb-1.5">
+        <p class="text-xs text-gray-500 uppercase tracking-wider px-3 truncate">Vet Tools</p>
       </div>
 
       <!-- Appointments -->
       <a href="{% url 'list_citas' %}" 
-         class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+         class="group flex items-center space-x-2.5 px-3 py-2.5 rounded-lg text-sm
                 hover:bg-olive-700 transition-all duration-300
                 {% if 'appointments' in request.path %}bg-olive-700 shadow-lg{% endif %}">
-        <i class="fas fa-calendar-alt text-olive-400 group-hover:text-white text-lg w-5"></i>
-        <span class="font-medium group-hover:translate-x-1 transition-transform">My Appointments</span>
+        <i class="fas fa-calendar-alt text-olive-400 group-hover:text-white w-4 flex-shrink-0"></i>
+        <span class="font-medium group-hover:translate-x-1 transition-transform truncate">My Appointments</span>
       </a>
 
       <!-- Reports -->
       <a href="{% url 'reports' %}" 
-         class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+         class="group flex items-center space-x-2.5 px-3 py-2.5 rounded-lg text-sm
                 hover:bg-olive-700 transition-all duration-300
                 {% if 'reports' in request.path %}bg-olive-700 shadow-lg{% endif %}">
-        <i class="fas fa-chart-bar text-olive-400 group-hover:text-white text-lg w-5"></i>
-        <span class="font-medium group-hover:translate-x-1 transition-transform">Reports</span>
+        <i class="fas fa-chart-bar text-olive-400 group-hover:text-white w-4 flex-shrink-0"></i>
+        <span class="font-medium group-hover:translate-x-1 transition-transform truncate">Reports</span>
       </a>
 
     {% elif rol == 'Cliente' %}
-      <!-- Separador -->
-      <div class="pt-4 pb-2">
-        <p class="text-xs text-gray-500 uppercase tracking-wider px-4">My Services</p>
+      <!-- Separador COMPACTO -->
+      <div class="pt-3 pb-1.5">
+        <p class="text-xs text-gray-500 uppercase tracking-wider px-3 truncate">Services</p>
       </div>
 
       <!-- Appointments -->
       <a href="{% url 'list_citas' %}" 
-         class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+         class="group flex items-center space-x-2.5 px-3 py-2.5 rounded-lg text-sm
                 hover:bg-olive-700 transition-all duration-300
                 {% if 'appointments' in request.path %}bg-olive-700 shadow-lg{% endif %}">
-        <i class="fas fa-calendar text-olive-400 group-hover:text-white text-lg w-5"></i>
-        <span class="font-medium group-hover:translate-x-1 transition-transform">My Appointments</span>
+        <i class="fas fa-calendar text-olive-400 group-hover:text-white w-4 flex-shrink-0"></i>
+        <span class="font-medium group-hover:translate-x-1 transition-transform truncate">My Appointments</span>
       </a>
     {% endif %}
 
-    <!-- Espaciado extra al final para que logout sea visible -->
-    <div class="h-20"></div>
+    <!-- Espaciado para que se vea el logout -->
+    <div class="h-16"></div>
 
   </nav>
 
-  <!-- Footer del sidebar (fijo abajo) -->
-  <div class="p-6 border-t border-dark-700 bg-dark-900 flex-shrink-0">
+  <!-- Footer COMPACTO (fijo abajo) -->
+  <div class="p-4 border-t border-dark-700 bg-dark-900 flex-shrink-0">
     <a href="{% url 'logout' %}" 
-       class="group flex items-center space-x-3 px-4 py-3 rounded-lg 
+       class="group flex items-center space-x-2.5 px-3 py-2.5 rounded-lg text-sm
               bg-red-900/30 hover:bg-red-900 transition-all duration-300">
-      <i class="fas fa-sign-out-alt text-red-400 group-hover:text-white text-lg w-5"></i>
-      <span class="font-medium text-red-300 group-hover:text-white group-hover:translate-x-1 transition-transform">
+      <i class="fas fa-sign-out-alt text-red-400 group-hover:text-white w-4 flex-shrink-0"></i>
+      <span class="font-medium text-red-300 group-hover:text-white group-hover:translate-x-1 transition-transform truncate">
         Logout
       </span>
     </a>
@@ -165,22 +165,33 @@
   });
   
   observer.observe(sidebar, { attributes: true, attributeFilter: ['class'] });
+  
+  // Cerrar sidebar al hacer click en un link (móvil)
+  if (window.innerWidth < 1024) {
+    const sidebarLinks = sidebar.querySelectorAll('a');
+    sidebarLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.add('hidden');
+      });
+    });
+  }
 </script>
 
-<!-- Estilos para scrollbar -->
+<!-- Estilos para scrollbar ULTRA DELGADO -->
 <style>
-  /* Custom scrollbar para navegación */
+  /* Scrollbar ultra delgado para navegación */
   nav::-webkit-scrollbar {
-    width: 6px;
+    width: 4px;
   }
 
   nav::-webkit-scrollbar-track {
-    background: #0F172A;
+    background: transparent;
   }
 
   nav::-webkit-scrollbar-thumb {
     background: #334155;
-    border-radius: 3px;
+    border-radius: 2px;
   }
 
   nav::-webkit-scrollbar-thumb:hover {
@@ -190,6 +201,11 @@
   /* Para Firefox */
   nav {
     scrollbar-width: thin;
-    scrollbar-color: #334155 #0F172A;
+    scrollbar-color: #334155 transparent;
+  }
+
+  /* Smooth scroll */
+  nav {
+    scroll-behavior: smooth;
   }
 </style>
