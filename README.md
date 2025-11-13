@@ -153,8 +153,8 @@ Edita `Hello/settings.py` y configura tu conexión a MongoDB:
 
 ```python
 # Configuración de MongoDB
-MONGO_URI = "mongodb://localhost:27017/"
-MONGO_DB_NAME = "petcare_db"
+MONGO_URI = "aqui pones tu conexion de mongodb"
+MONGO_DB_NAME = "Clinica_Veterinaria"
 ```
 
 ### 2. Estructura de MongoDB
@@ -164,6 +164,7 @@ El sistema creará automáticamente las siguientes colecciones:
 - `users` - Usuarios del sistema
 - `pacientes` - Mascotas registradas
 - `citas` - Citas programadas
+- `historia_clinica` - Historias clinicas
 
 ---
 
