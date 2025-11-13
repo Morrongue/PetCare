@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="max-w-4xl mx-auto px-4 sm:px-6 py-6">
+  
+  <!-- Header con badge de PENDING PAYMENT -->
+  <div class="mb-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-bold text-white flex items-center">
+          <i class="fas fa-clock text-yellow-500 mr-3"></i>
+          Complete Pending Payment
+        </h1>
+        <p class="text-gray-400 mt-1 text-sm sm:text-base">
+          Complete your payment to confirm your appointment
+        </p>
+      </div>
+      <div class="bg-yellow-500 text-black px-4 py-2 rounded-lg font-bold text-sm">
+        ⏳ PENDING
+      </div>
+    </div>
+  </div>
+
+  <!-- Alerta de pago pendiente -->
+  <div class="bg-yellow-900/20 border border-yellow-700 rounded-xl p-4 mb-6">
+    <div class="flex items-start space-x-3">
+      <i class="fas fa-exclamation-triangle text-yellow-500 mt-0.5 text-xl"></i>
+      <div class="text-sm text-yellow-300">
+        <p class="font-semibold mb-1">Payment Required</p>
+        <p>This appointment is pending payment confirmation. Complete the payment now to secure your booking.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    
+    <!-- Resumen de la Cita -->
+    <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+      <div class="flex items-center space-x-3 mb-6 pb-4 border-b border-dark-700">
+        <div class="w-10 h-10 bg-olive-700 rounded-lg flex items-center justify-center">
+          <i class="fas fa-calendar-check text-white"></i>
+        </div>
+        <h2 class="text-xl font-bold text-white">Appointment Details</h2>
+      </div>
+
+      <div class="space-y-4">
+        <div class="flex items-start space-x-3">
+          <i class="fas fa-paw text-olive-500 mt-1"></i>
+          <div class="flex-1">
+            <p class="text-gray-400 text-sm">Pet</p>
+            <p class="text-white font-medium">{{ mascota_nombre }}</p>
+            <p class="text-gray-500 text-sm">{{ mascota_especie }}</p>
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-3">
+          <i class="fas fa-user-md text-olive-500 mt-1"></i>
+          <div class="flex-1">
+            <p class="text-gray-400 text-sm">Veterinarian</p>
+            <p class="text-white font-medium">Dr. {{ veterinario_nombre }}</p>
+            {% if veterinario_especialidad %}
+            <p class="text-gray-500 text-sm">{{ veterinario_especialidad }}</p>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-3">
+          <i class="fas fa-calendar text-olive-500 mt-1"></i>
+          <div class="flex-1">
+            <p class="text-gray-400 text-sm">Date & Time</p>
+            <p class="text-white font-medium">{{ fecha }}</p>
+            <p class="text-gray-500 text-sm">{{ hora }}</p>
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-3">
+          <i class="fas fa-notes-medical text-olive-500 mt-1"></i>
+          <div class="flex-1">
+            <p class="text-gray-400 text-sm">Reason</p>
+            <p class="text-white font-medium">{{ motivo }}</p>
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-3">
+          <i class="fas fa-clock text-olive-500 mt-1"></i>
+          <div class="flex-1">
+            <p class="text-gray-400 text-sm">Duration</p>
+            <p class="text-white font-medium">{{ duracion }} hour{{ duracion|pluralize }}</p>
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-3">
+          <i class="fas fa-hashtag text-olive-500 mt-1"></i>
+          <div class="flex-1">
+            <p class="text-gray-400 text-sm">Reference</p>
+            <p class="text-white font-mono text-sm">{{ ref_demo }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Información de Pago -->
+    <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+      <div class="flex items-center space-x-3 mb-6 pb-4 border-b border-dark-700">
+        <div class="w-10 h-10 bg-green-700 rounded-lg flex items-center justify-center">
+          <i class="fas fa-dollar-sign text-white"></i>
+        </div>
+        <h2 class="text-xl font-bold text-white">Payment Details</h2>
+      </div>
+
+      <div class="space-y-4 mb-6">
+        <div class="flex justify-between items-center p-4 bg-dark-900 rounded-lg">
+          <span class="text-gray-300">Service</span>
+          <span class="text-white font-medium">{{ motivo }}</span>
+        </div>
+
+        <div class="flex justify-between items-center p-4 bg-dark-900 rounded-lg">
+          <span class="text-gray-300">Amount Due</span>
+          <span class="text-white font-medium">${{ precio|floatformat:0 }} COP</span>
+        </div>
+
+        <div class="h-px bg-dark-600"></div>
+
+        <div class="flex justify-between items-center p-4 bg-gradient-to-r from-yellow-900/30 to-yellow-800/30 
+                    rounded-lg border border-yellow-700/50">
+          <span class="text-white font-bold text-lg">Total to Pay</span>
+          <span class="text-yellow-400 font-bold text-2xl">${{ precio|floatformat:0 }} COP</span>
+        </div>
+      </div>
+
+      <!-- Formulario de pago demo -->
+      <form method="POST" action="{% url 'process_pending_payment' cita_id %}">
+        {% csrf_token %}
+        
+        <!-- Selector de resultado -->
+        <div class="mb-6">
+          <label class="block text-gray-300 mb-3 font-medium">
+            <i class="fas fa-flask text-yellow-500 mr-2"></i>
+            Simulate Payment Result:
+          </label>
+          
+          <div class="space-y-2">
+            <!-- Opción: Aprobado -->
+            <label class="flex items-center p-4 bg-dark-900 rounded-lg border-2 border-dark-600 
+                          hover:border-green-600 cursor-pointer transition-all">
+              <input type="radio" name="payment_status" value="approved" checked
+                     class="w-4 h-4 text-green-600 focus:ring-green-600">
+              <div class="ml-3">
+                <div class="text-white font-medium">✅ Payment Approved</div>
+                <div class="text-gray-400 text-sm">Confirm appointment</div>
+              </div>
+            </label>
+            
+            <!-- Opción: Rechazado -->
+            <label class="flex items-center p-4 bg-dark-900 rounded-lg border-2 border-dark-600 
+                          hover:border-red-600 cursor-pointer transition-all">
+              <input type="radio" name="payment_status" value="rejected"
+                     class="w-4 h-4 text-red-600 focus:ring-red-600">
+              <div class="ml-3">
+                <div class="text-white font-medium">❌ Payment Rejected</div>
+                <div class="text-gray-400 text-sm">Keep appointment as pending payment</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Botón de procesamiento -->
+        <button type="submit"
+                class="w-full bg-gradient-to-r from-green-700 to-green-600 hover:from-green-600 hover:to-green-500
+                       text-white font-bold py-4 rounded-lg transition-all duration-300 shadow-lg
+                       transform hover:scale-105 flex items-center justify-center space-x-2">
+          <i class="fas fa-check-circle"></i>
+          <span>Complete Payment</span>
+        </button>
+      </form>
+
+      <!-- Info de demo -->
+      <div class="mt-6 p-4 bg-blue-900/20 border border-blue-700 rounded-lg">
+        <p class="text-blue-300 text-sm">
+          <i class="fas fa-info-circle mr-2"></i>
+          <strong>Demo Mode:</strong> Select the payment outcome and click "Complete Payment" to simulate the transaction.
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Botones adicionales -->
+  <div class="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+    <a href="{% url 'list_citas' %}" 
+       class="inline-flex items-center justify-center space-x-2 bg-dark-900 hover:bg-dark-700 
+              text-gray-300 hover:text-white font-semibold px-6 py-3 rounded-lg
+              border border-dark-600 hover:border-olive-600 transition-all">
+      <i class="fas fa-arrow-left"></i>
+      <span>Back to Appointments</span>
+    </a>
+    
+    <a href="{% url 'cancel_cita' cita_id %}" 
+       onclick="return confirm('Are you sure you want to cancel this appointment?')"
+       class="inline-flex items-center justify-center space-x-2 bg-red-900 hover:bg-red-800 
+              text-red-300 hover:text-white font-semibold px-6 py-3 rounded-lg
+              border border-red-700 hover:border-red-600 transition-all">
+      <i class="fas fa-times-circle"></i>
+      <span>Cancel Appointment</span>
+    </a>
+  </div>
+
+</div>
+
+{% endblock %}

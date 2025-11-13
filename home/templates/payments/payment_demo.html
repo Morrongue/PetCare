@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="max-w-4xl mx-auto px-4 sm:px-6 py-6">
+  
+  <!-- Header con badge de DEMO -->
+  <div class="mb-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-bold text-white flex items-center">
+          <i class="fas fa-credit-card text-olive-500 mr-3"></i>
+          Payment Confirmation
+        </h1>
+        <p class="text-gray-400 mt-1 text-sm sm:text-base">
+          Review your appointment details and proceed with payment
+        </p>
+      </div>
+      <div class="bg-yellow-500 text-black px-4 py-2 rounded-lg font-bold text-sm">
+        🧪 DEMO MODE
+      </div>
+    </div>
+  </div>
+
+  <!-- Alerta de modo demo -->
+  <div class="bg-yellow-900/20 border border-yellow-700 rounded-xl p-4 mb-6">
+    <div class="flex items-start space-x-3">
+      <i class="fas fa-info-circle text-yellow-500 mt-0.5"></i>
+      <div class="text-sm text-yellow-300">
+        <p class="font-semibold mb-1">Demo Mode Active</p>
+        <p>This is a simulated payment for testing purposes. No real charges will be made.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    
+    <!-- Resumen de la Cita -->
+    <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+      <div class="flex items-center space-x-3 mb-6 pb-4 border-b border-dark-700">
+        <div class="w-10 h-10 bg-olive-700 rounded-lg flex items-center justify-center">
+          <i class="fas fa-calendar-check text-white"></i>
+        </div>
+        <h2 class="text-xl font-bold text-white">Appointment Summary</h2>
+      </div>
+
+      <div class="space-y-4">
+        <div class="flex items-start space-x-3">
+          <i class="fas fa-paw text-olive-500 mt-1"></i>
+          <div class="flex-1">
+            <p class="text-gray-400 text-sm">Pet</p>
+            <p class="text-white font-medium">{{ mascota_nombre }}</p>
+            <p class="text-gray-500 text-sm">{{ mascota_especie }}</p>
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-3">
+          <i class="fas fa-user-md text-olive-500 mt-1"></i>
+          <div class="flex-1">
+            <p class="text-gray-400 text-sm">Veterinarian</p>
+            <p class="text-white font-medium">Dr. {{ veterinario_nombre }}</p>
+            {% if veterinario_especialidad %}
+            <p class="text-gray-500 text-sm">{{ veterinario_especialidad }}</p>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-3">
+          <i class="fas fa-calendar text-olive-500 mt-1"></i>
+          <div class="flex-1">
+            <p class="text-gray-400 text-sm">Date & Time</p>
+            <p class="text-white font-medium">{{ fecha }}</p>
+            <p class="text-gray-500 text-sm">{{ hora }}</p>
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-3">
+          <i class="fas fa-notes-medical text-olive-500 mt-1"></i>
+          <div class="flex-1">
+            <p class="text-gray-400 text-sm">Reason</p>
+            <p class="text-white font-medium">{{ motivo }}</p>
+          </div>
+        </div>
+
+        <div class="flex items-start space-x-3">
+          <i class="fas fa-clock text-olive-500 mt-1"></i>
+          <div class="flex-1">
+            <p class="text-gray-400 text-sm">Duration</p>
+            <p class="text-white font-medium">{{ duracion }} hour{{ duracion|pluralize }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Información de Pago DEMO -->
+    <div class="bg-dark-800 border border-dark-700 rounded-xl p-6 shadow-xl">
+      <div class="flex items-center space-x-3 mb-6 pb-4 border-b border-dark-700">
+        <div class="w-10 h-10 bg-green-700 rounded-lg flex items-center justify-center">
+          <i class="fas fa-dollar-sign text-white"></i>
+        </div>
+        <h2 class="text-xl font-bold text-white">Payment Details</h2>
+      </div>
+
+      <div class="space-y-4 mb-6">
+        <div class="flex justify-between items-center p-4 bg-dark-900 rounded-lg">
+          <span class="text-gray-300">Service</span>
+          <span class="text-white font-medium">{{ motivo }}</span>
+        </div>
+
+        <div class="flex justify-between items-center p-4 bg-dark-900 rounded-lg">
+          <span class="text-gray-300">Price</span>
+          <span class="text-white font-medium">${{ precio|floatformat:0 }} COP</span>
+        </div>
+
+        <div class="h-px bg-dark-600"></div>
+
+        <div class="flex justify-between items-center p-4 bg-gradient-to-r from-olive-900/30 to-olive-800/30 
+                    rounded-lg border border-olive-700/50">
+          <span class="text-white font-bold text-lg">Total to Pay</span>
+          <span class="text-olive-400 font-bold text-2xl">${{ precio|floatformat:0 }} COP</span>
+        </div>
+      </div>
+
+      <!-- Formulario de pago demo -->
+      <form method="POST" action="{% url 'process_demo_payment' %}">
+        {% csrf_token %}
+        
+        <!-- Datos ocultos de la cita -->
+        <input type="hidden" name="id_paciente" value="{{ cita_data.id_paciente }}">
+        <input type="hidden" name="id_veterinario" value="{{ cita_data.id_veterinario }}">
+        <input type="hidden" name="fecha" value="{{ cita_data.fecha }}">
+        <input type="hidden" name="fecha_fin" value="{{ cita_data.fecha_fin }}">
+        <input type="hidden" name="motivo" value="{{ cita_data.motivo }}">
+        <input type="hidden" name="duracion" value="{{ cita_data.duracion }}">
+        <input type="hidden" name="ref_demo" value="{{ cita_data.ref_demo }}">
+        <input type="hidden" name="precio" value="{{ cita_data.precio }}">
+        
+        <!-- Selector de resultado -->
+        <div class="mb-6">
+          <label class="block text-gray-300 mb-3 font-medium">
+            <i class="fas fa-flask text-yellow-500 mr-2"></i>
+            Simulate Payment Result:
+          </label>
+          
+          <div class="space-y-2">
+            <!-- Opción: Aprobado -->
+            <label class="flex items-center p-4 bg-dark-900 rounded-lg border-2 border-dark-600 
+                          hover:border-green-600 cursor-pointer transition-all">
+              <input type="radio" name="payment_status" value="approved" checked
+                     class="w-4 h-4 text-green-600 focus:ring-green-600">
+              <div class="ml-3">
+                <div class="text-white font-medium">✅ Payment Approved</div>
+                <div class="text-gray-400 text-sm">Appointment will be created successfully</div>
+              </div>
+            </label>
+            
+            <!-- Opción: Rechazado -->
+            <label class="flex items-center p-4 bg-dark-900 rounded-lg border-2 border-dark-600 
+                          hover:border-red-600 cursor-pointer transition-all">
+              <input type="radio" name="payment_status" value="rejected"
+                     class="w-4 h-4 text-red-600 focus:ring-red-600">
+              <div class="ml-3">
+                <div class="text-white font-medium">❌ Payment Rejected</div>
+                <div class="text-gray-400 text-sm">Simulate a failed payment</div>
+              </div>
+            </label>
+            
+            <!-- Opción: Pendiente -->
+            <label class="flex items-center p-4 bg-dark-900 rounded-lg border-2 border-dark-600 
+                          hover:border-yellow-600 cursor-pointer transition-all">
+              <input type="radio" name="payment_status" value="pending"
+                     class="w-4 h-4 text-yellow-600 focus:ring-yellow-600">
+              <div class="ml-3">
+                <div class="text-white font-medium">⏳ Payment Pending</div>
+                <div class="text-gray-400 text-sm">Simulate a pending verification</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Botón de procesamiento -->
+        <button type="submit"
+                class="w-full bg-gradient-to-r from-olive-700 to-olive-600 hover:from-olive-600 hover:to-olive-500
+                       text-white font-bold py-4 rounded-lg transition-all duration-300 shadow-lg
+                       transform hover:scale-105 flex items-center justify-center space-x-2">
+          <i class="fas fa-check-circle"></i>
+          <span>Process Demo Payment</span>
+        </button>
+      </form>
+
+      <!-- Info de demo -->
+      <div class="mt-6 p-4 bg-blue-900/20 border border-blue-700 rounded-lg">
+        <p class="text-blue-300 text-sm">
+          <i class="fas fa-info-circle mr-2"></i>
+          <strong>Note:</strong> This is a simulation. Select the desired outcome and click "Process Demo Payment" to test the flow.
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Botón de Cancelar -->
+  <div class="mt-6 flex justify-center">
+    <a href="{% url 'list_citas' %}" 
+       class="inline-flex items-center space-x-2 bg-dark-900 hover:bg-dark-700 
+              text-gray-300 hover:text-white font-semibold px-6 py-3 rounded-lg
+              border border-dark-600 hover:border-olive-600 transition-all">
+      <i class="fas fa-arrow-left"></i>
+      <span>Back to Appointments</span>
+    </a>
+  </div>
+
+</div>
+
+{% endblock %}

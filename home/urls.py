@@ -53,10 +53,18 @@ urlpatterns = [
 
         # ========== PAYMENTS ==========
  
-    path('pagos/preparar/', views.prepare_payment, name='prepare_payment'),
+
+
+    # A:
+    path('pagos/preparar/', views.prepare_payment_demo, name='prepare_payment'),
+    path('pagos/procesar-demo/', views.process_demo_payment, name='process_demo_payment'),
+    path('pagos/completar/<str:cita_id>/', views.complete_pending_payment, name='complete_pending_payment'),
+
     path('pagos/confirmacion/', views.epayco_confirmation, name='epayco_confirmation'),
     path('pagos/respuesta/', views.epayco_response, name='epayco_response'),
     path('pagos/exito/<str:ref_payco>/', views.payment_success, name='payment_success'),
     path('pagos/fallo/<str:ref_payco>/', views.payment_failure, name='payment_failure'),
+    path('pagos/procesar/<str:cita_id>/', views.process_pending_payment, name='process_pending_payment'),
+
 
 ]

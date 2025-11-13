@@ -2949,3 +2949,297 @@ def payment_failure(request, ref_payco):
         'rol': rol,
         'username': username
     })
+
+
+#PAYMENTS DEMO
+
+def prepare_payment_demo(request):
+    """Página de pago simulado sin ePayco"""
+    
+    if "user" not in request.session:
+        messages.warning(request, "Por favor inicia sesión primero.")
+        return redirect("login")
+    
+    if request.method != "POST":
+        return redirect("add_cita")
+    
+    username = request.session.get("user")
+    rol = request.session.get("rol")
+    user = users.find_one({"User": username})
+    
+    if not user:
+        messages.error(request, "Usuario no encontrado.")
+        return redirect("index")
+    
+    user_id = str(user["_id"])
+    
+    # Obtener datos del formulario
+    id_paciente = request.POST.get("paciente")
+    id_veterinario = request.POST.get("veterinario")
+    fecha = request.POST.get("fecha")
+    motivo = request.POST.get("motivo")
+    duracion = int(request.POST.get("duracion", 1))
+    
+    # Validar datos básicos
+    if not all([id_paciente, id_veterinario, fecha, motivo]):
+        messages.error(request, "Por favor completa todos los campos requeridos.")
+        return redirect("add_cita")
+    
+    # Obtener datos de la mascota
+    mascota = pacientes.find_one({"_id": ObjectId(id_paciente)})
+    if not mascota:
+        messages.error(request, "Mascota no encontrada.")
+        return redirect("add_cita")
+    
+    # Obtener datos del veterinario
+    vet = users.find_one({
+        "_id": ObjectId(id_veterinario),
+        "Rol": "Veterinario"
+    })
+    if not vet:
+        messages.error(request, "Veterinario no encontrado.")
+        return redirect("add_cita")
+    
+    # Calcular precio según motivo
+    from django.conf import settings
+    precio = settings.APPOINTMENT_PRICES.get(motivo, settings.DEFAULT_APPOINTMENT_PRICE)
+    
+    # Generar referencia única
+    ref_demo = f"DEMO-{id_paciente}-{int(time.time())}"
+    
+    # Formatear fecha para mostrar
+    try:
+        fecha_dt = datetime.strptime(fecha, "%Y-%m-%dT%H:%M")
+        fecha_formatted = fecha_dt.strftime("%d/%m/%Y")
+        hora_formatted = fecha_dt.strftime("%I:%M %p")
+        fecha_fin = fecha_dt + timedelta(hours=duracion)
+        fecha_fin_str = fecha_fin.strftime("%Y-%m-%dT%H:%M")
+    except:
+        fecha_formatted = fecha
+        hora_formatted = ""
+        fecha_fin_str = fecha
+    
+    # Preparar contexto para la página de pago demo
+    context = {
+        "rol": rol,
+        "username": username,
+        "mascota_nombre": mascota.get("nombre", "Unknown"),
+        "mascota_especie": mascota.get("especie", "Unknown"),
+        "veterinario_nombre": vet.get("nombre", "Unknown"),
+        "veterinario_especialidad": vet.get("especialidad", ""),
+        "fecha": fecha_formatted,
+        "hora": hora_formatted,
+        "motivo": motivo,
+        "duracion": duracion,
+        "precio": precio,
+        "ref_demo": ref_demo,
+        # Datos para crear la cita
+        "cita_data": {
+            "id_paciente": id_paciente,
+            "id_veterinario": id_veterinario,
+            "fecha": fecha,
+            "fecha_fin": fecha_fin_str,
+            "motivo": motivo,
+            "duracion": duracion,
+            "ref_demo": ref_demo,
+            "precio": precio
+        }
+    }
+    
+    return render(request, "payments/payment_demo.html", context)
+
+#PAYMENTS DEMO
+
+def process_demo_payment(request):
+    """Procesa el pago demo y crea la cita"""
+    
+    if "user" not in request.session:
+        messages.warning(request, "Por favor inicia sesión primero.")
+        return redirect("login")
+    
+    if request.method != "POST":
+        return redirect("list_citas")
+    
+    # Obtener datos de la cita
+    id_paciente = request.POST.get("id_paciente")
+    id_veterinario = request.POST.get("id_veterinario")
+    fecha = request.POST.get("fecha")
+    fecha_fin = request.POST.get("fecha_fin")
+    motivo = request.POST.get("motivo")
+    duracion = int(request.POST.get("duracion", 1))
+    ref_demo = request.POST.get("ref_demo")
+    precio = request.POST.get("precio")
+    payment_status = request.POST.get("payment_status", "approved")
+    
+    # ✅ CAMBIO: Crear cita para TODOS los estados (approved, pending, rejected)
+    
+    if payment_status == "approved":
+        # Pago aprobado - Cita confirmada
+        citas.insert_one({
+            "id_paciente": id_paciente,
+            "id_veterinario": id_veterinario,
+            "fecha": fecha,
+            "fecha_fin": fecha_fin,
+            "motivo": motivo,
+            "duracion": duracion,
+            "estado": "Pendiente",
+            "payment_id": ref_demo,
+            "payment_status": "paid",
+            "payment_amount": float(precio),
+            "payment_date": datetime.now().isoformat(),
+            "ref_payco": ref_demo,
+            "created_at": datetime.now().isoformat(),
+            "fecha_creacion": datetime.now().strftime("%Y-%m-%dT%H:%M"),
+            "observacion": "",
+            "fecha_observacion": "",
+            "veterinario_observacion": ""
+        })
+        
+        messages.success(request, "¡Pago aprobado exitosamente! Tu cita ha sido confirmada.")
+        return redirect("list_citas")
+    
+    elif payment_status == "pending":
+        # ✅ NUEVO: Pago pendiente - Crear cita pero con estado especial
+        citas.insert_one({
+            "id_paciente": id_paciente,
+            "id_veterinario": id_veterinario,
+            "fecha": fecha,
+            "fecha_fin": fecha_fin,
+            "motivo": motivo,
+            "duracion": duracion,
+            "estado": "Pendiente de Pago",  # Estado especial
+            "payment_id": ref_demo,
+            "payment_status": "pending",
+            "payment_amount": float(precio),
+            "payment_date": None,
+            "ref_payco": ref_demo,
+            "created_at": datetime.now().isoformat(),
+            "fecha_creacion": datetime.now().strftime("%Y-%m-%dT%H:%M"),
+            "observacion": "",
+            "fecha_observacion": "",
+            "veterinario_observacion": ""
+        })
+        
+        messages.warning(request, "Tu cita ha sido registrada con pago PENDIENTE. Completa el pago para confirmarla.")
+        return redirect("list_citas")
+    
+    else:  # rejected
+        # Pago rechazado - No crear cita
+        messages.error(request, "Pago rechazado. Por favor intenta de nuevo con otro método de pago.")
+        return redirect("add_cita")
+
+
+# ✅ NUEVA FUNCIÓN: Completar pago pendiente
+def complete_pending_payment(request, cita_id):
+    """Permite completar un pago pendiente"""
+    
+    if "user" not in request.session:
+        messages.warning(request, "Por favor inicia sesión primero.")
+        return redirect("login")
+    
+    # Buscar la cita
+    cita = citas.find_one({"_id": ObjectId(cita_id)})
+    if not cita:
+        messages.error(request, "Cita no encontrada.")
+        return redirect("list_citas")
+    
+    # Verificar que el pago esté pendiente
+    if cita.get("payment_status") != "pending":
+        messages.error(request, "Esta cita no tiene un pago pendiente.")
+        return redirect("list_citas")
+    
+    # Verificar permisos
+    username = request.session.get("user")
+    rol = request.session.get("rol")
+    current_user = users.find_one({"User": username})
+    
+    if not current_user:
+        messages.error(request, "Usuario no encontrado.")
+        return redirect("list_citas")
+    
+    current_user_id = str(current_user["_id"])
+    
+    # Solo el dueño de la mascota puede completar el pago
+    if rol == "Cliente":
+        mascota = pacientes.find_one({"_id": ObjectId(cita.get("id_paciente"))})
+        if not mascota or mascota.get("id_user") != current_user_id:
+            messages.error(request, "No tienes permiso para pagar esta cita.")
+            return redirect("list_citas")
+    
+    # Obtener datos de la mascota y veterinario para mostrar
+    mascota = pacientes.find_one({"_id": ObjectId(cita.get("id_paciente"))})
+    vet = users.find_one({
+        "_id": ObjectId(cita.get("id_veterinario")),
+        "Rol": "Veterinario"
+    })
+    
+    # Formatear fecha
+    try:
+        fecha_dt = datetime.strptime(cita.get("fecha", ""), "%Y-%m-%dT%H:%M")
+        fecha_formatted = fecha_dt.strftime("%d/%m/%Y")
+        hora_formatted = fecha_dt.strftime("%I:%M %p")
+    except:
+        fecha_formatted = cita.get("fecha", "")
+        hora_formatted = ""
+    
+    context = {
+        "rol": rol,
+        "username": username,
+        "cita": cita,
+        "cita_id": str(cita["_id"]),
+        "mascota_nombre": mascota.get("nombre", "Unknown") if mascota else "Unknown",
+        "mascota_especie": mascota.get("especie", "Unknown") if mascota else "Unknown",
+        "veterinario_nombre": vet.get("nombre", "Unknown") if vet else "Unknown",
+        "veterinario_especialidad": vet.get("especialidad", "") if vet else "",
+        "fecha": fecha_formatted,
+        "hora": hora_formatted,
+        "motivo": cita.get("motivo", ""),
+        "duracion": cita.get("duracion", 1),
+        "precio": cita.get("payment_amount", 0),
+        "ref_demo": cita.get("ref_payco", ""),
+    }
+    
+    return render(request, "payments/complete_payment.html", context)
+
+
+# ✅ NUEVA FUNCIÓN: Procesar el pago pendiente
+def process_pending_payment(request, cita_id):
+    """Procesa el pago de una cita pendiente"""
+    
+    if "user" not in request.session:
+        messages.warning(request, "Por favor inicia sesión primero.")
+        return redirect("login")
+    
+    if request.method != "POST":
+        return redirect("list_citas")
+    
+    # Buscar la cita
+    cita = citas.find_one({"_id": ObjectId(cita_id)})
+    if not cita:
+        messages.error(request, "Cita no encontrada.")
+        return redirect("list_citas")
+    
+    # Obtener resultado del pago
+    payment_status = request.POST.get("payment_status", "approved")
+    
+    if payment_status == "approved":
+        # Actualizar la cita con pago aprobado
+        citas.update_one(
+            {"_id": ObjectId(cita_id)},
+            {"$set": {
+                "estado": "Pendiente",
+                "payment_status": "paid",
+                "payment_date": datetime.now().isoformat(),
+            }}
+        )
+        
+        messages.success(request, "¡Pago completado exitosamente! Tu cita ha sido confirmada.")
+        return redirect("list_citas")
+    
+    elif payment_status == "rejected":
+        messages.error(request, "Pago rechazado. La cita seguirá como pendiente de pago.")
+        return redirect("list_citas")
+    
+    else:  # pending again
+        messages.warning(request, "El pago sigue pendiente.")
+        return redirect("list_citas")

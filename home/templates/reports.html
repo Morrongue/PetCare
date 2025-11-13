@@ -730,7 +730,7 @@
       }
     }
     
-    document.getElementById(counterId).textContent = visibleCount;
+    document.getElementById(counterId).textContent = visibleCount - visibleCount + rows.length;
   }
 
   function clearTableSearch(inputId, tableId, counterId) {

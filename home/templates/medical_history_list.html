@@ -416,7 +416,7 @@
     });
 
     document.getElementById('resultCount').textContent = visibleCount;
-    document.getElementById('totalHistorias').textContent = visibleCount;
+    document.getElementById('totalHistorias').textContent = visibleCount - visibleCount + {{ total }};
 
     const noResults = document.getElementById('noResults');
     const table = document.getElementById('historiesTable')?.closest('.bg-dark-800');

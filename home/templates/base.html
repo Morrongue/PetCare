@@ -8,7 +8,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' fill='%236B8E23'><path d='M226.5 92.9c14.3 42.9-.3 86.2-32.6 96.8s-70.1-15.6-84.4-58.5s.3-86.2 32.6-96.8s70.1 15.6 84.4 58.5zM100.4 198.6c18.9 32.4 14.3 70.1-10.2 84.1s-59.7-.9-78.5-33.3S-2.7 179.3 21.8 165.3s59.7 .9 78.5 33.3zM69.2 401.2C121.6 259.9 214.7 224 256 224s134.4 35.9 186.8 177.2c3.6 9.7 5.2 20.1 5.2 30.5v1.6c0 25.8-20.9 46.7-46.7 46.7c-11.5 0-22.9-1.4-34-4.2l-88-22c-15.3-3.8-31.3-3.8-46.6 0l-88 22c-11.1 2.8-22.5 4.2-34 4.2C84.9 480 64 459.1 64 433.3v-1.6c0-10.4 1.6-20.8 5.2-30.5zM421.8 282.7c-24.5-14-29.1-51.7-10.2-84.1s54-47.3 78.5-33.3s29.1 51.7 10.2 84.1s-54 47.3-78.5 33.3zM310.1 189.7c-32.3-10.6-46.9-53.9-32.6-96.8s52.1-69.1 84.4-58.5s46.9 53.9 32.6 96.8s-52.1 69.1-84.4 58.5z'/></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
+ 
   <script>
     tailwind.config = {
       theme: {
@@ -43,25 +43,25 @@
       }
     }
   </script>
-
+ 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
-    
+   
     body {
       font-family: 'Poppins', sans-serif;
       background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
     }
-
+ 
     /* Animaciones suaves */
     .fade-in {
       animation: fadeIn 0.5s ease-in;
     }
-
+ 
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(20px); }
       to { opacity: 1; transform: translateY(0); }
     }
-
+ 
     /* Dropdown animation */
     @keyframes dropdownOpen {
       from {
@@ -73,7 +73,7 @@
         transform: scale(1) translateY(0);
       }
     }
-
+ 
     @keyframes dropdownClose {
       from {
         opacity: 1;
@@ -84,97 +84,114 @@
         transform: scale(0.95) translateY(-10px);
       }
     }
-
+ 
     .dropdown-open {
       animation: dropdownOpen 0.2s ease-out forwards;
     }
-
+ 
     .dropdown-close {
       animation: dropdownClose 0.15s ease-in forwards;
     }
-
+ 
     /* Scrollbar personalizado */
     ::-webkit-scrollbar {
       width: 10px;
     }
-
+ 
     ::-webkit-scrollbar-track {
       background: #1f2937;
     }
-
+ 
     ::-webkit-scrollbar-thumb {
       background: #556B2F;
       border-radius: 5px;
     }
-
+ 
     ::-webkit-scrollbar-thumb:hover {
       background: #6B8E23;
     }
-
+ 
     /* Efecto glassmorphism */
     .glass {
       background: rgba(255, 255, 255, 0.05);
       backdrop-filter: blur(10px);
       border: 1px solid rgba(255, 255, 255, 0.1);
     }
+ 
+    /* Prevenir scroll horizontal */
+    html, body {
+      overflow-x: hidden;
+      max-width: 100vw;
+    }
   </style>
 </head>
 <body class="text-gray-100">
-
-  <div class="flex min-h-screen">
+ 
+  <div class="flex min-h-screen w-full overflow-hidden">
     {% if username %}
       {% include 'includes/sidebar.html' %}
     {% endif %}
-
+ 
     <!-- Main Content Area con padding izquierdo para el sidebar -->
-    <div class="flex-1 {% if username %}lg:ml-72{% endif %} transition-all duration-300">
+    <div class="flex-1 {% if username %}lg:ml-72{% endif %} transition-all duration-300 w-full min-w-0">
       {% if username %}
-        <!-- Header superior -->
-        <div class="bg-dark-800 border-b border-dark-700 px-8 py-4 flex justify-between items-center sticky top-0 z-10 shadow-lg">
-          <button id="toggleSidebar" class="lg:hidden text-white hover:text-olive-500 transition-colors">
-            <i class="fas fa-bars text-2xl"></i>
+        <!-- Header superior - RESPONSIVE -->
+        <div class="bg-dark-800 border-b border-dark-700 px-3 sm:px-4 md:px-6 lg:px-8
+                    py-3 sm:py-4 flex justify-between items-center sticky top-0 z-10 shadow-lg">
+          <!-- Botón toggle sidebar (móvil) -->
+          <button id="toggleSidebar"
+                  class="lg:hidden text-white hover:text-olive-500 transition-colors p-2 rounded-lg
+                         hover:bg-dark-700 active:scale-95 transform">
+            <i class="fas fa-bars text-xl sm:text-2xl"></i>
           </button>
-          
-          <div class="flex items-center space-x-4 ml-auto relative">
-            <div class="text-right">
-              <p class="text-sm text-gray-400">Welcome back,</p>
-              <p class="font-semibold text-olive-400">{{ username }}</p>
+         
+          <!-- User info y dropdown -->
+          <div class="flex items-center space-x-2 sm:space-x-3 md:space-x-4 ml-auto relative">
+            <!-- Welcome text (oculto en móviles pequeños) -->
+            <div class="text-right hidden sm:block">
+              <p class="text-xs sm:text-sm text-gray-400 truncate">Welcome back,</p>
+              <p class="font-semibold text-olive-400 text-sm sm:text-base truncate max-w-[120px] sm:max-w-[150px] md:max-w-none">
+                {{ username }}
+              </p>
             </div>
-            
+           
             <!-- Profile Dropdown Button -->
             <div class="relative">
-              <button id="profileDropdownBtn" 
-                      class="w-10 h-10 rounded-full overflow-hidden
-                             flex items-center justify-center hover:scale-110 transition-all duration-300 
-                             shadow-lg hover:shadow-olive-500/50 focus:outline-none focus:ring-2 focus:ring-olive-500 border-2 border-olive-600">
+              <button id="profileDropdownBtn"
+                      class="w-9 h-9 sm:w-10 sm:h-10 md:w-11 md:h-11 rounded-full overflow-hidden
+                             flex items-center justify-center hover:scale-110 transition-all duration-300
+                             shadow-lg hover:shadow-olive-500/50 focus:outline-none focus:ring-2 focus:ring-olive-500
+                             border-2 border-olive-600 flex-shrink-0">
                 {% if request.session.user_profile_picture %}
                   <!-- Foto de perfil si existe -->
-                  <img src="{{ request.session.user_profile_picture }}" 
-                       alt="{{ username }}" 
+                  <img src="{{ request.session.user_profile_picture }}"
+                       alt="{{ username }}"
                        class="w-full h-full object-cover">
                 {% else %}
                   <!-- Avatar con iniciales si no hay foto -->
                   <div class="w-full h-full bg-gradient-to-br from-olive-700 to-olive-600 flex items-center justify-center">
-                    <span class="text-white text-sm font-bold">
+                    <span class="text-white text-xs sm:text-sm font-bold">
                       {{ username|slice:":2"|upper }}
                     </span>
                   </div>
                 {% endif %}
               </button>
-
-              <!-- Dropdown Menu -->
-              <div id="profileDropdown" 
-                   class="hidden absolute right-0 mt-3 w-56 bg-dark-800 border border-dark-700 rounded-xl 
-                          shadow-2xl overflow-hidden z-50 transform origin-top-right">
-                
+ 
+              <!-- Dropdown Menu - RESPONSIVE -->
+              <div id="profileDropdown"
+                   class="hidden absolute right-0 mt-2 sm:mt-3 w-64 sm:w-72 md:w-80 lg:w-96
+                          bg-dark-800 border border-dark-700 rounded-xl
+                          shadow-2xl overflow-hidden z-50 transform origin-top-right
+                          max-h-[calc(100vh-5rem)] overflow-y-auto">
+               
                 <!-- User Info -->
-                <div class="px-4 py-3 bg-dark-900 border-b border-dark-700">
-                  <div class="flex items-center space-x-3 mb-2">
+                <div class="px-3 sm:px-4 py-2.5 sm:py-3 bg-dark-900 border-b border-dark-700">
+                  <div class="flex items-center space-x-2 sm:space-x-3 mb-2">
                     <!-- Mini avatar en el dropdown -->
-                    <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-olive-600 flex-shrink-0">
+                    <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 border-olive-600 flex-shrink-0">
                       {% if request.session.user_profile_picture %}
-                        <img src="{{ request.session.user_profile_picture }}" 
-                             alt="{{ username }}" 
+                        <img src="{{ request.session.user_profile_picture }}"
+                             alt="{{ username }}"
                              class="w-full h-full object-cover">
                       {% else %}
                         <div class="w-full h-full bg-gradient-to-br from-olive-700 to-olive-600 flex items-center justify-center">
@@ -185,8 +202,8 @@
                       {% endif %}
                     </div>
                     <div class="flex-1 min-w-0">
-                      <p class="text-sm text-gray-400">Signed in as</p>
-                      <p class="font-semibold text-white truncate">{{ username }}</p>
+                      <p class="text-xs sm:text-sm text-gray-400">Signed in as</p>
+                      <p class="font-semibold text-white truncate text-sm sm:text-base">{{ username }}</p>
                     </div>
                   </div>
                   {% if rol %}
@@ -198,47 +215,49 @@
                     </span>
                   {% endif %}
                 </div>
-
+ 
                 <!-- Menu Items -->
-                <div class="py-2">
+                <div class="py-1 sm:py-2">
                   <!-- Edit Information -->
-                  <a href="{% url 'edit_profile' %}" 
-                     class="flex items-center space-x-3 px-4 py-3 hover:bg-dark-900 transition-colors group">
-                    <div class="w-8 h-8 bg-olive-700/30 rounded-lg flex items-center justify-center 
-                                group-hover:bg-olive-700 transition-colors">
-                      <i class="fas fa-user-edit text-olive-400 group-hover:text-white text-sm"></i>
+                  <a href="{% url 'edit_profile' %}"
+                     class="flex items-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2.5 sm:py-3
+                            hover:bg-dark-900 transition-colors group active:bg-dark-700">
+                    <div class="w-7 h-7 sm:w-8 sm:h-8 bg-olive-700/30 rounded-lg flex items-center justify-center
+                                group-hover:bg-olive-700 transition-colors flex-shrink-0">
+                      <i class="fas fa-user-edit text-olive-400 group-hover:text-white text-xs sm:text-sm"></i>
                     </div>
-                    <div class="flex-1">
-                      <p class="text-sm font-medium text-white group-hover:text-olive-400 transition-colors">
+                    <div class="flex-1 min-w-0">
+                      <p class="text-xs sm:text-sm font-medium text-white group-hover:text-olive-400 transition-colors truncate">
                         Edit Information
                       </p>
-                      <p class="text-xs text-gray-500">Update your profile</p>
+                      <p class="text-xs text-gray-500 truncate">Update your profile</p>
                     </div>
-                    <i class="fas fa-chevron-right text-gray-600 text-xs group-hover:text-olive-400"></i>
+                    <i class="fas fa-chevron-right text-gray-600 text-xs group-hover:text-olive-400 flex-shrink-0"></i>
                   </a>
-
+ 
                   <!-- Divider -->
-                  <div class="border-t border-dark-700 my-2"></div>
-
+                  <div class="border-t border-dark-700 my-1 sm:my-2"></div>
+ 
                   <!-- Logout -->
-                  <a href="{% url 'logout' %}" 
-                     class="flex items-center space-x-3 px-4 py-3 hover:bg-red-900/20 transition-colors group">
-                    <div class="w-8 h-8 bg-red-700/30 rounded-lg flex items-center justify-center 
-                                group-hover:bg-red-700 transition-colors">
-                      <i class="fas fa-sign-out-alt text-red-400 group-hover:text-white text-sm"></i>
+                  <a href="{% url 'logout' %}"
+                     class="flex items-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2.5 sm:py-3
+                            hover:bg-red-900/20 transition-colors group active:bg-red-900/30">
+                    <div class="w-7 h-7 sm:w-8 sm:h-8 bg-red-700/30 rounded-lg flex items-center justify-center
+                                group-hover:bg-red-700 transition-colors flex-shrink-0">
+                      <i class="fas fa-sign-out-alt text-red-400 group-hover:text-white text-xs sm:text-sm"></i>
                     </div>
-                    <div class="flex-1">
-                      <p class="text-sm font-medium text-white group-hover:text-red-400 transition-colors">
+                    <div class="flex-1 min-w-0">
+                      <p class="text-xs sm:text-sm font-medium text-white group-hover:text-red-400 transition-colors truncate">
                         Logout
                       </p>
-                      <p class="text-xs text-gray-500">Sign out of your account</p>
+                      <p class="text-xs text-gray-500 truncate">Sign out of your account</p>
                     </div>
-                    <i class="fas fa-chevron-right text-gray-600 text-xs group-hover:text-red-400"></i>
+                    <i class="fas fa-chevron-right text-gray-600 text-xs group-hover:text-red-400 flex-shrink-0"></i>
                   </a>
                 </div>
-
+ 
                 <!-- Footer -->
-                <div class="px-4 py-2 bg-dark-900 border-t border-dark-700">
+                <div class="px-3 sm:px-4 py-1.5 sm:py-2 bg-dark-900 border-t border-dark-700">
                   <p class="text-xs text-gray-500 text-center">
                     <i class="fas fa-shield-alt mr-1"></i>
                     Secure Session
@@ -249,14 +268,14 @@
           </div>
         </div>
       {% endif %}
-
-      <!-- Contenido principal con padding generoso -->
-      <div class="p-8 fade-in min-h-screen">
+ 
+      <!-- Contenido principal con padding responsive -->
+      <div class="p-3 sm:p-4 md:p-6 lg:p-8 fade-in min-h-screen w-full">
         {% block content %}{% endblock %}
       </div>
     </div>
   </div>
-
+ 
  <script>
   // ============================================
   // SIDEBAR TOGGLE (Mobile)
@@ -264,31 +283,31 @@
   document.addEventListener('DOMContentLoaded', function() {
     const toggleBtn = document.getElementById("toggleSidebar");
     const sidebar = document.getElementById("sidebar");
-    
+   
     if (toggleBtn && sidebar) {
       toggleBtn.addEventListener("click", () => {
         sidebar.classList.toggle("-translate-x-full");
       });
     }
-
+ 
     // ============================================
-    // PROFILE DROPDOWN - DEBUGGED VERSION
+    // PROFILE DROPDOWN - RESPONSIVE VERSION
     // ============================================
     const profileBtn = document.getElementById('profileDropdownBtn');
     const profileDropdown = document.getElementById('profileDropdown');
-    
+   
     console.log('Profile Button:', profileBtn);
     console.log('Profile Dropdown:', profileDropdown);
-    
+   
     if (profileBtn && profileDropdown) {
       let isOpen = false;
-      
+     
       // Abrir/cerrar dropdown
       profileBtn.addEventListener('click', function(e) {
         e.stopPropagation();
         e.preventDefault();
         console.log('Botón clickeado, estado actual:', isOpen);
-        
+       
         if (isOpen) {
           // Cerrar dropdown
           profileDropdown.classList.add('hidden');
@@ -301,13 +320,33 @@
           profileDropdown.classList.add('dropdown-open');
           isOpen = true;
           console.log('Dropdown abierto');
+         
+          // Ajustar posición en móvil si es necesario
+          if (window.innerWidth < 640) {
+            const rect = profileBtn.getBoundingClientRect();
+            const dropdownHeight = profileDropdown.offsetHeight;
+            const spaceBelow = window.innerHeight - rect.bottom;
+           
+            // Si no hay espacio abajo, mostrar arriba
+            if (spaceBelow < dropdownHeight + 20) {
+              profileDropdown.style.bottom = '100%';
+              profileDropdown.style.top = 'auto';
+              profileDropdown.style.marginBottom = '0.5rem';
+              profileDropdown.style.marginTop = '0';
+            } else {
+              profileDropdown.style.bottom = 'auto';
+              profileDropdown.style.top = '100%';
+              profileDropdown.style.marginTop = '0.5rem';
+              profileDropdown.style.marginBottom = '0';
+            }
+          }
         }
       });
-
+ 
       // Cerrar al hacer clic fuera
       document.addEventListener('click', function(e) {
-        if (isOpen && 
-            !profileDropdown.contains(e.target) && 
+        if (isOpen &&
+            !profileDropdown.contains(e.target) &&
             !profileBtn.contains(e.target)) {
           profileDropdown.classList.add('hidden');
           profileDropdown.classList.remove('dropdown-open');
@@ -315,7 +354,7 @@
           console.log('Dropdown cerrado por clic fuera');
         }
       });
-
+ 
       // Cerrar con Escape
       document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && isOpen) {
@@ -325,16 +364,79 @@
           console.log('Dropdown cerrado con Escape');
         }
       });
-
+ 
       // Prevenir que se cierre al hacer clic dentro
       profileDropdown.addEventListener('click', function(e) {
         e.stopPropagation();
       });
+ 
+      // Reajustar dropdown en cambio de orientación o resize
+      window.addEventListener('resize', function() {
+        if (isOpen) {
+          // Resetear estilos de posición
+          profileDropdown.style.bottom = 'auto';
+          profileDropdown.style.top = '';
+          profileDropdown.style.marginTop = '';
+          profileDropdown.style.marginBottom = '';
+        }
+      });
     } else {
       console.error('No se encontraron los elementos del dropdown');
     }
+ 
+    // ============================================
+    // TOUCH SUPPORT - Mejorar experiencia táctil
+    // ============================================
+    if ('ontouchstart' in window) {
+      // Añadir clase para dispositivos táctiles
+      document.body.classList.add('touch-device');
+     
+      // Mejorar feedback visual en botones táctiles
+      const touchButtons = document.querySelectorAll('button, a');
+      touchButtons.forEach(button => {
+        button.addEventListener('touchstart', function() {
+          this.style.transform = 'scale(0.95)';
+        });
+        button.addEventListener('touchend', function() {
+          this.style.transform = '';
+        });
+      });
+    }
   });
 </script>
-
+ 
+<style>
+  /* Estilos adicionales para touch devices */
+  .touch-device button,
+  .touch-device a {
+    -webkit-tap-highlight-color: rgba(107, 142, 35, 0.2);
+  }
+ 
+  /* Mejorar área de toque en móvil */
+  @media (max-width: 640px) {
+    button, a {
+      min-height: 44px; /* iOS recommendation */
+      min-width: 44px;
+    }
+  }
+ 
+  /* Ajustar dropdown en pantallas muy pequeñas */
+  @media (max-width: 375px) {
+    #profileDropdown {
+      right: -0.5rem;
+      left: auto;
+      max-width: calc(100vw - 1rem);
+    }
+  }
+ 
+  /* Prevenir zoom en inputs en iOS */
+  @media (max-width: 768px) {
+    input, select, textarea {
+      font-size: 16px !important;
+    }
+  }
+</style>
+ 
 </body>
 </html>
+ 
