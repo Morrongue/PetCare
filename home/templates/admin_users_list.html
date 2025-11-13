@@ -266,10 +266,9 @@
         </table>
       </div>
 
-      <!-- Mobile Cards (hidden on desktop) -->
-      <div class="md:hidden space-y-3 p-4" id="mobileUsersList">
+        <div class="md:hidden space-y-3 p-4" id="mobileUsersList">
         {% for usuario in usuarios %}
-          <div class="bg-dark-900 border border-dark-700 rounded-xl p-4 user-row mobile-user-card"
+          <div class="bg-dark-900 border border-dark-700 rounded-xl p-3 user-row mobile-user-card"
                data-username="{{ usuario.User|lower }}"
                data-email="{{ usuario.Email|lower }}"
                data-phone="{{ usuario.Phone|default:''|lower }}"
@@ -278,7 +277,7 @@
             
             <!-- Header with avatar and basic info -->
             <div class="flex items-center justify-between mb-3">
-              <div class="flex items-center space-x-3 flex-1 min-w-0">
+              <div class="flex items-center space-x-2.5 flex-1 min-w-0">
                 <div class="w-10 h-10 rounded-full bg-gradient-to-br 
                             {% if usuario.Rol == 'Administrador' %}from-orange-700 to-orange-600
                             {% elif usuario.Rol == 'Veterinario' %}from-purple-700 to-purple-600
@@ -287,69 +286,67 @@
                   {{ usuario.User|slice:":1"|upper }}
                 </div>
                 <div class="min-w-0 flex-1">
-                  <p class="text-white font-medium username-text truncate">{{ usuario.User }}</p>
+                  <p class="text-white font-medium text-sm username-text truncate">{{ usuario.User }}</p>
                   <p class="text-gray-400 text-xs truncate email-text">{{ usuario.Email }}</p>
                 </div>
               </div>
-              <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold
+              <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold flex-shrink-0
                            {% if usuario.Rol == 'Administrador' %}bg-orange-700/30 text-orange-400 border border-orange-700
                            {% elif usuario.Rol == 'Veterinario' %}bg-purple-700/30 text-purple-400 border border-purple-700
                            {% else %}bg-olive-700/30 text-olive-400 border border-olive-700{% endif %}">
                 <i class="fas 
                    {% if usuario.Rol == 'Administrador' %}fa-user-shield
                    {% elif usuario.Rol == 'Veterinario' %}fa-user-md
-                   {% else %}fa-user{% endif %} mr-1"></i>
-                {% if usuario.Rol == 'Administrador' %}Admin
-                {% elif usuario.Rol == 'Veterinario' %}Vet
-                {% else %}Client{% endif %}
+                   {% else %}fa-user{% endif %}"></i>
               </span>
             </div>
 
             <!-- Contact Info -->
-            <div class="space-y-2 mb-3">
+            <div class="space-y-1.5 mb-3">
               {% if usuario.Phone %}
-              <div class="flex items-center text-gray-300 text-sm phone-text">
-                <i class="fas fa-phone text-olive-500 mr-2 w-4"></i>
+              <div class="flex items-center text-gray-300 text-xs phone-text">
+                <i class="fas fa-phone text-olive-500 mr-2 w-3 text-xs"></i>
                 <span class="truncate">{{ usuario.Phone }}</span>
               </div>
               {% endif %}
               
               {% if usuario.Address %}
-              <div class="flex items-center text-gray-300 text-sm address-text">
-                <i class="fas fa-map-marker-alt text-olive-500 mr-2 w-4"></i>
+              <div class="flex items-center text-gray-300 text-xs address-text">
+                <i class="fas fa-map-marker-alt text-olive-500 mr-2 w-3 text-xs"></i>
                 <span class="truncate">{{ usuario.Address }}</span>
               </div>
               {% endif %}
             </div>
 
-            <!-- Actions -->
-            <div class="flex items-center justify-between pt-3 border-t border-dark-700">
-              <div class="text-xs text-gray-500">
-                ID: {{ usuario.id }}
-              </div>
-              <div class="flex items-center space-x-2">
+            <!-- ✅ BOTONES ULTRA COMPACTOS - VERSIÓN STACK VERTICAL -->
+            <div class="flex flex-col gap-2 pt-3 border-t border-dark-700">
+              
+              <!-- Fila 1: Edit + Reset (50% cada uno) -->
+              <div class="flex gap-2">
                 <a href="{% url 'admin_users_edit' usuario.id %}" 
-                   class="bg-olive-700 hover:bg-olive-600 text-white px-3 py-1.5 rounded-lg
-                          transition-colors duration-300 text-xs font-medium inline-flex items-center"
-                   title="Edit user">
-                  <i class="fas fa-edit"></i>
+                   class="flex-1 bg-olive-700 hover:bg-olive-600 text-white px-2 py-2 rounded-lg
+                          transition-colors duration-300 text-xs font-medium flex items-center justify-center gap-1">
+                  <i class="fas fa-edit text-xs"></i>
+                  <span>Edit</span>
                 </a>
                 
                 <a href="{% url 'admin_users_reset_password' usuario.id %}"
-                   class="bg-blue-700 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg
-                          transition-colors duration-300 text-xs font-medium inline-flex items-center"
-                   title="Reset password">
-                  <i class="fas fa-key"></i>
-                </a>
-                
-                <a href="{% url 'admin_users_delete' usuario.id %}" 
-                   onclick="return confirm('Are you sure you want to delete {{ usuario.User }}? This action cannot be undone.');"
-                   class="bg-red-900/50 hover:bg-red-900 text-red-300 hover:text-white px-3 py-1.5 rounded-lg
-                          transition-colors duration-300 text-xs font-medium border border-red-700 inline-flex items-center"
-                   title="Delete user">
-                  <i class="fas fa-trash-alt"></i>
+                   class="flex-1 bg-blue-700 hover:bg-blue-600 text-white px-2 py-2 rounded-lg
+                          transition-colors duration-300 text-xs font-medium flex items-center justify-center gap-1">
+                  <i class="fas fa-key text-xs"></i>
+                  <span>Reset</span>
                 </a>
               </div>
+
+              <!-- Fila 2: Delete (100% ancho) -->
+              <a href="{% url 'admin_users_delete' usuario.id %}" 
+                 onclick="return confirm('Delete {{ usuario.User }}?');"
+                 class="w-full bg-red-900/50 hover:bg-red-900 text-red-300 hover:text-white px-2 py-2 rounded-lg
+                        transition-colors duration-300 text-xs font-medium border border-red-700 flex items-center justify-center gap-1">
+                <i class="fas fa-trash-alt text-xs"></i>
+                <span>Delete User</span>
+              </a>
+
             </div>
           </div>
         {% endfor %}
