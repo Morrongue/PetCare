@@ -3115,26 +3115,18 @@ def payment_failure(request, ref_payco):
 
 
 #PAYMENTS DEMO
+# ============================================================================
+# REEMPLAZAR EN views.py - FUNCIÓN prepare_payment
+# ============================================================================
 
-def prepare_payment_demo(request):
-    """Página de pago simulado sin ePayco"""
+def prepare_payment(request):
+    """Prepara los datos para el pago después de validar disponibilidad."""
+    if request.method != 'POST':
+        return redirect('add_cita')
     
     if "user" not in request.session:
-        messages.warning(request, "Por favor inicia sesión primero.")
+        messages.warning(request, "Please log in first.")
         return redirect("login")
-    
-    if request.method != "POST":
-        return redirect("add_cita")
-    
-    username = request.session.get("user")
-    rol = request.session.get("rol")
-    user = users.find_one({"User": username})
-    
-    if not user:
-        messages.error(request, "Usuario no encontrado.")
-        return redirect("index")
-    
-    user_id = str(user["_id"])
     
     # Obtener datos del formulario
     id_paciente = request.POST.get("paciente")
@@ -3143,74 +3135,151 @@ def prepare_payment_demo(request):
     motivo = request.POST.get("motivo")
     duracion = int(request.POST.get("duracion", 1))
     
-    # Validar datos básicos
+    # Validar campos requeridos
     if not all([id_paciente, id_veterinario, fecha, motivo]):
-        messages.error(request, "Por favor completa todos los campos requeridos.")
+        messages.error(request, "Please fill all required fields.")
         return redirect("add_cita")
     
-    # Obtener datos de la mascota
+    # Validar formato de fecha
+    try:
+        fecha_cita = datetime.strptime(fecha, "%Y-%m-%dT%H:%M")
+    except ValueError:
+        messages.error(request, "Invalid date format.")
+        return redirect("add_cita")
+    
+    # ============================================
+    # VALIDACIONES DE FECHA Y HORARIO
+    # ============================================
+    
+    # Validar anticipación mínima (1 hora)
+    now = datetime.now()
+    minimum_time = now + timedelta(hours=1)
+    
+    if fecha_cita < minimum_time:
+        messages.error(request, "Appointments must be scheduled at least 1 hour in advance.")
+        return redirect("add_cita")
+    
+    # Validar días de semana (Lunes a Viernes)
+    if fecha_cita.weekday() >= 5:
+        messages.error(request, "Appointments are only available Monday through Friday.")
+        return redirect("add_cita")
+    
+    # Validar horario de oficina (8 AM - 7 PM)
+    hora = fecha_cita.time()
+    if hora < dt_time(8, 0) or hora >= dt_time(19, 0):
+        messages.error(request, "Appointments must be between 8:00 AM and 7:00 PM.")
+        return redirect("add_cita")
+    
+    # Validar horario de almuerzo (12 PM - 2 PM)
+    if dt_time(12, 0) <= hora < dt_time(14, 0):
+        messages.error(request, "No appointments during lunch break (12:00 PM – 2:00 PM).")
+        return redirect("add_cita")
+    
+    # ============================================
+    # VALIDACIÓN DE CONFLICTOS (CRÍTICA)
+    # ============================================
+    
+    # Calcular fecha de fin
+    fecha_fin = fecha_cita + timedelta(hours=duracion)
+    
+    print(f"🔍 Verificando disponibilidad del veterinario {id_veterinario}")
+    print(f"   Nueva cita: {fecha_cita.strftime('%Y-%m-%d %H:%M')} - {fecha_fin.strftime('%H:%M')}")
+    
+    # Buscar citas del veterinario (NO canceladas)
+    citas_veterinario = list(citas.find({
+        "id_veterinario": id_veterinario,
+        "estado": {"$in": ["Pendiente", "Completada", "Pendiente de Pago"]}
+    }))
+    
+    print(f"   Citas existentes: {len(citas_veterinario)}")
+    
+    conflicto_encontrado = False
+    cita_conflicto_info = None
+    
+    for cita_existente in citas_veterinario:
+        try:
+            # Obtener fecha de inicio
+            fecha_existente_str = cita_existente.get("fecha", "")
+            if not fecha_existente_str:
+                continue
+            
+            fecha_existente = datetime.strptime(fecha_existente_str, "%Y-%m-%dT%H:%M")
+            
+            # Calcular fecha de fin
+            if "fecha_fin" in cita_existente and cita_existente["fecha_fin"]:
+                fecha_fin_existente = datetime.strptime(cita_existente["fecha_fin"], "%Y-%m-%dT%H:%M")
+            else:
+                duracion_existente = cita_existente.get("duracion", 1)
+                fecha_fin_existente = fecha_existente + timedelta(hours=duracion_existente)
+            
+            # ✅ VERIFICAR CONFLICTO
+            if fecha_cita < fecha_fin_existente and fecha_fin > fecha_existente:
+                conflicto_encontrado = True
+                cita_conflicto_info = {
+                    "inicio": fecha_existente.strftime("%I:%M %p"),
+                    "fin": fecha_fin_existente.strftime("%I:%M %p"),
+                    "fecha": fecha_existente.strftime("%B %d, %Y")
+                }
+                print(f"   ❌ CONFLICTO: {fecha_existente.strftime('%H:%M')} - {fecha_fin_existente.strftime('%H:%M')}")
+                break
+            else:
+                print(f"   ✅ Sin conflicto: {fecha_existente.strftime('%H:%M')} - {fecha_fin_existente.strftime('%H:%M')}")
+                
+        except Exception as e:
+            print(f"   ⚠️ Error procesando cita: {e}")
+            continue
+    
+    # Si hay conflicto, rechazar
+    if conflicto_encontrado:
+        if cita_conflicto_info:
+            messages.error(
+                request,
+                f"This veterinarian is already booked from {cita_conflicto_info['inicio']} "
+                f"to {cita_conflicto_info['fin']} on {cita_conflicto_info['fecha']}. "
+                f"Please choose a different time."
+            )
+        else:
+            messages.error(request, "This veterinarian is already booked during that time. Please choose a different time.")
+        
+        return redirect("add_cita")
+    
+    # ============================================
+    # TODO OK: Guardar en sesión y continuar a pago
+    # ============================================
+    
+    print(f"✅ Horario disponible, guardando en sesión...")
+    
+    # Guardar datos en sesión
+    request.session['temp_cita_paciente'] = id_paciente
+    request.session['temp_cita_veterinario'] = id_veterinario
+    request.session['temp_cita_fecha'] = fecha
+    request.session['temp_cita_motivo'] = motivo
+    request.session['temp_cita_duracion'] = duracion
+    
+    # Obtener información para el pago
     mascota = pacientes.find_one({"_id": ObjectId(id_paciente)})
-    if not mascota:
-        messages.error(request, "Mascota no encontrada.")
+    veterinario = users.find_one({"_id": ObjectId(id_veterinario)})
+    
+    if not mascota or not veterinario:
+        messages.error(request, "Error retrieving data. Please try again.")
         return redirect("add_cita")
     
-    # Obtener datos del veterinario
-    vet = users.find_one({
-        "_id": ObjectId(id_veterinario),
-        "Rol": "Veterinario"
-    })
-    if not vet:
-        messages.error(request, "Veterinario no encontrado.")
-        return redirect("add_cita")
-    
-    # Calcular precio según motivo
+    # Calcular precio según el motivo
     from django.conf import settings
     precio = settings.APPOINTMENT_PRICES.get(motivo, settings.DEFAULT_APPOINTMENT_PRICE)
     
-    # Generar referencia única
-    ref_demo = f"DEMO-{id_paciente}-{int(time.time())}"
-    
-    # Formatear fecha para mostrar
-    try:
-        fecha_dt = datetime.strptime(fecha, "%Y-%m-%dT%H:%M")
-        fecha_formatted = fecha_dt.strftime("%d/%m/%Y")
-        hora_formatted = fecha_dt.strftime("%I:%M %p")
-        fecha_fin = fecha_dt + timedelta(hours=duracion)
-        fecha_fin_str = fecha_fin.strftime("%Y-%m-%dT%H:%M")
-    except:
-        fecha_formatted = fecha
-        hora_formatted = ""
-        fecha_fin_str = fecha
-    
-    # Preparar contexto para la página de pago demo
+    # Preparar datos para la página de pago
     context = {
-        "rol": rol,
-        "username": username,
-        "mascota_nombre": mascota.get("nombre", "Unknown"),
-        "mascota_especie": mascota.get("especie", "Unknown"),
-        "veterinario_nombre": vet.get("nombre", "Unknown"),
-        "veterinario_especialidad": vet.get("especialidad", ""),
-        "fecha": fecha_formatted,
-        "hora": hora_formatted,
-        "motivo": motivo,
-        "duracion": duracion,
-        "precio": precio,
-        "ref_demo": ref_demo,
-        # Datos para crear la cita
-        "cita_data": {
-            "id_paciente": id_paciente,
-            "id_veterinario": id_veterinario,
-            "fecha": fecha,
-            "fecha_fin": fecha_fin_str,
-            "motivo": motivo,
-            "duracion": duracion,
-            "ref_demo": ref_demo,
-            "precio": precio
-        }
+        'mascota_nombre': mascota.get('nombre', 'Unknown'),
+        'mascota_especie': mascota.get('especie', 'Unknown'),
+        'veterinario_nombre': f"Dr. {veterinario.get('nombre', 'Unknown')}",
+        'fecha': fecha_cita.strftime("%B %d, %Y at %I:%M %p"),
+        'motivo': motivo,
+        'duracion': duracion,
+        'precio': precio,
     }
     
-    return render(request, "payments/payment_demo.html", context)
-
+    return render(request, 'payments/payment_demo.html', context)
 #PAYMENTS DEMO
 
 
