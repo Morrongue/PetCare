@@ -1224,8 +1224,12 @@ def cancel_cita(request, id):
 
 
 # -------------------- AGENDAR CITA --------------------
+# ============================================================================
+# SNIPPET PARA VIEWS.PY - FUNCIÓN ADD_CITA CON VALIDACIÓN MEJORADA
+# ============================================================================
+
 def add_cita(request):
-    """Agrega una nueva cita con validaciones."""
+    """Agrega una nueva cita con validaciones estrictas."""
     if "user" not in request.session:
         messages.warning(request, "Please log in first.")
         return redirect("login")
@@ -1257,7 +1261,7 @@ def add_cita(request):
             m["owner_name"] = owner_name
             mascotas.append(m)
 
-    # ✅ Obtener veterinarios de USERS
+    # Obtener veterinarios
     vets = []
     for v in users.find({"Rol": "Veterinario"}):
         v["id"] = str(v["_id"])
@@ -1275,8 +1279,9 @@ def add_cita(request):
         motivo = request.POST.get("motivo")
         duracion = int(request.POST.get("duracion", 1))
 
-        if not fecha:
-            messages.error(request, "Please select a valid date and time.")
+        # Validación básica
+        if not all([id_paciente, id_veterinario, fecha, motivo]):
+            messages.error(request, "Please fill all required fields.")
             return render(request, "appointments_form.html", {
                 "mascotas": mascotas,
                 "vets": vets,
@@ -1284,12 +1289,45 @@ def add_cita(request):
                 "rol": rol
             })
 
-        fecha_cita = datetime.strptime(fecha, "%Y-%m-%dT%H:%M")
+        # Validar formato de fecha
+        try:
+            fecha_cita = datetime.strptime(fecha, "%Y-%m-%dT%H:%M")
+        except ValueError:
+            messages.error(request, "Invalid date format.")
+            return render(request, "appointments_form.html", {
+                "mascotas": mascotas,
+                "vets": vets,
+                "action": "Add",
+                "rol": rol
+            })
+
+        # Validar que sea al menos 1 hora en el futuro
+        now = datetime.now()
+        minimum_time = now + timedelta(hours=1)
+        
+        if fecha_cita < minimum_time:
+            messages.error(request, "Appointments must be scheduled at least 1 hour in advance.")
+            return render(request, "appointments_form.html", {
+                "mascotas": mascotas,
+                "vets": vets,
+                "action": "Add",
+                "rol": rol
+            })
+
+        # Validar días de semana (Lunes a Viernes)
+        if fecha_cita.weekday() >= 5:
+            messages.error(request, "Appointments are only available Monday through Friday.")
+            return render(request, "appointments_form.html", {
+                "mascotas": mascotas,
+                "vets": vets,
+                "action": "Add",
+                "rol": rol
+            })
+
+        # Validar horario de oficina
         hora = fecha_cita.time()
-
-        # ✅ FIX: Usar dt_time en lugar de time
         if hora < dt_time(8, 0) or hora >= dt_time(19, 0):
-            messages.error(request, "Appointments must be between 8:00 a.m. and 7:00 p.m.")
+            messages.error(request, "Appointments must be between 8:00 AM and 7:00 PM.")
             return render(request, "appointments_form.html", {
                 "mascotas": mascotas,
                 "vets": vets,
@@ -1297,8 +1335,9 @@ def add_cita(request):
                 "rol": rol
             })
 
+        # Validar horario de almuerzo
         if dt_time(12, 0) <= hora < dt_time(14, 0):
-            messages.error(request, "Lunch time (12–2 p.m.) is unavailable.")
+            messages.error(request, "No appointments during lunch break (12:00 PM – 2:00 PM).")
             return render(request, "appointments_form.html", {
                 "mascotas": mascotas,
                 "vets": vets,
@@ -1306,32 +1345,70 @@ def add_cita(request):
                 "rol": rol
             })
 
+        # Calcular fecha de fin
         fecha_fin = fecha_cita + timedelta(hours=duracion)
 
-        # Verificar disponibilidad del veterinario
+        # ✅ VALIDACIÓN MEJORADA: Verificar conflictos con citas existentes
+        print(f"🔍 Verificando disponibilidad del veterinario {id_veterinario}")
+        print(f"   Nueva cita: {fecha_cita.strftime('%Y-%m-%d %H:%M')} - {fecha_fin.strftime('%H:%M')}")
+        
+        # Buscar todas las citas NO CANCELADAS del veterinario
         citas_veterinario = list(citas.find({
             "id_veterinario": id_veterinario,
-            "estado": {"$ne": "Cancelada"}
+            "estado": {"$in": ["Pendiente", "Completada"]}  # Excluir Canceladas
         }))
         
+        print(f"   Citas existentes: {len(citas_veterinario)}")
+        
         conflicto_encontrado = False
+        cita_conflicto_info = None
+        
         for cita_existente in citas_veterinario:
             try:
-                fecha_existente = datetime.strptime(cita_existente.get("fecha", ""), "%Y-%m-%dT%H:%M")
+                # Obtener fecha de inicio de la cita existente
+                fecha_existente_str = cita_existente.get("fecha", "")
+                if not fecha_existente_str:
+                    continue
                 
-                if "fecha_fin" in cita_existente:
+                fecha_existente = datetime.strptime(fecha_existente_str, "%Y-%m-%dT%H:%M")
+                
+                # Calcular fecha de fin de la cita existente
+                if "fecha_fin" in cita_existente and cita_existente["fecha_fin"]:
                     fecha_fin_existente = datetime.strptime(cita_existente["fecha_fin"], "%Y-%m-%dT%H:%M")
                 else:
-                    fecha_fin_existente = fecha_existente + timedelta(hours=1)
+                    # Si no tiene fecha_fin, usar duración (por defecto 1 hora)
+                    duracion_existente = cita_existente.get("duracion", 1)
+                    fecha_fin_existente = fecha_existente + timedelta(hours=duracion_existente)
                 
+                # ✅ LÓGICA DE CONFLICTO:
+                # Hay conflicto si:
+                # - La nueva cita empieza antes de que termine la existente Y
+                # - La nueva cita termina después de que empiece la existente
                 if fecha_cita < fecha_fin_existente and fecha_fin > fecha_existente:
                     conflicto_encontrado = True
+                    cita_conflicto_info = {
+                        "inicio": fecha_existente.strftime("%I:%M %p"),
+                        "fin": fecha_fin_existente.strftime("%I:%M %p"),
+                        "fecha": fecha_existente.strftime("%B %d, %Y")
+                    }
+                    print(f"   ❌ CONFLICTO encontrado: {fecha_existente.strftime('%H:%M')} - {fecha_fin_existente.strftime('%H:%M')}")
                     break
-            except:
+                else:
+                    print(f"   ✅ Sin conflicto: {fecha_existente.strftime('%H:%M')} - {fecha_fin_existente.strftime('%H:%M')}")
+                    
+            except Exception as e:
+                print(f"   ⚠️ Error procesando cita existente: {e}")
                 continue
         
         if conflicto_encontrado:
-            messages.error(request, "This veterinarian is already booked during that time.")
+            if cita_conflicto_info:
+                messages.error(
+                    request, 
+                    f"This veterinarian is already booked from {cita_conflicto_info['inicio']} to {cita_conflicto_info['fin']} on {cita_conflicto_info['fecha']}. Please choose a different time."
+                )
+            else:
+                messages.error(request, "This veterinarian is already booked during that time. Please choose a different time.")
+            
             return render(request, "appointments_form.html", {
                 "mascotas": mascotas,
                 "vets": vets,
@@ -1339,21 +1416,25 @@ def add_cita(request):
                 "rol": rol
             })
 
-        # Insertar cita
-        citas.insert_one({
+        # ✅ TODO OK: Insertar la cita
+        print(f"✅ Cita disponible, insertando...")
+        
+        nueva_cita = {
             "id_paciente": id_paciente,
             "id_veterinario": id_veterinario,
-            "fecha": fecha,
+            "fecha": fecha_cita.strftime("%Y-%m-%dT%H:%M"),
             "fecha_fin": fecha_fin.strftime("%Y-%m-%dT%H:%M"),
             "motivo": motivo,
             "estado": "Pendiente",
             "duracion": duracion,
-            "fecha_creacion": datetime.now().strftime("%Y-%m-%dT%H:%M"),
-            "observacion": "",  # ✅ Campo nuevo para observaciones
+            "fecha_creacion": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+            "observacion": "",
             "fecha_observacion": "",
             "veterinario_observacion": ""
-        })
-        messages.success(request, "Appointment successfully scheduled.")
+        }
+        
+        citas.insert_one(nueva_cita)
+        messages.success(request, "Appointment successfully scheduled!")
         return redirect("list_citas")
 
     return render(request, "appointments_form.html", {
@@ -1363,10 +1444,10 @@ def add_cita(request):
         "rol": rol
     })
 
-
 # -------------------- EDITAR CITA --------------------
+
 def edit_cita(request, id):
-    """Edita una cita con validación de permisos."""
+    """Edita una cita con validación estricta de conflictos."""
     if "user" not in request.session:
         messages.warning(request, "Please log in first.")
         return redirect("login")
@@ -1423,7 +1504,7 @@ def edit_cita(request, id):
             m["owner_name"] = owner_name
             mascotas.append(m)
     
-    # ✅ Obtener veterinarios de USERS
+    # Obtener veterinarios
     vets = []
     for v in users.find({"Rol": "Veterinario"}):
         v["id"] = str(v["_id"])
@@ -1435,7 +1516,9 @@ def edit_cita(request, id):
         id_veterinario = request.POST.get("veterinario")
         fecha_str = request.POST.get("fecha")
         motivo = request.POST.get("motivo", "").strip()
+        duracion = int(request.POST.get("duracion", cita.get("duracion", 1)))
         
+        # Validaciones básicas
         if not all([id_paciente, id_veterinario, fecha_str, motivo]):
             messages.error(request, "Please fill all required fields.")
             cita["id_str"] = str(cita["_id"])
@@ -1533,15 +1616,85 @@ def edit_cita(request, id):
                 "username": username
             })
         
-        # Actualizar la cita
+        # Calcular fecha de fin
+        fecha_fin = fecha_obj + timedelta(hours=duracion)
+        
+        # ✅ VALIDACIÓN MEJORADA: Verificar conflictos (excluyendo la cita actual)
+        print(f"🔍 Verificando disponibilidad para edición de cita {id}")
+        print(f"   Nueva fecha: {fecha_obj.strftime('%Y-%m-%d %H:%M')} - {fecha_fin.strftime('%H:%M')}")
+        
+        citas_veterinario = list(citas.find({
+            "id_veterinario": id_veterinario,
+            "estado": {"$in": ["Pendiente", "Completada"]},
+            "_id": {"$ne": ObjectId(id)}  # ✅ Excluir la cita actual
+        }))
+        
+        print(f"   Citas a verificar: {len(citas_veterinario)}")
+        
+        conflicto_encontrado = False
+        cita_conflicto_info = None
+        
+        for cita_existente in citas_veterinario:
+            try:
+                fecha_existente_str = cita_existente.get("fecha", "")
+                if not fecha_existente_str:
+                    continue
+                
+                fecha_existente = datetime.strptime(fecha_existente_str, "%Y-%m-%dT%H:%M")
+                
+                if "fecha_fin" in cita_existente and cita_existente["fecha_fin"]:
+                    fecha_fin_existente = datetime.strptime(cita_existente["fecha_fin"], "%Y-%m-%dT%H:%M")
+                else:
+                    duracion_existente = cita_existente.get("duracion", 1)
+                    fecha_fin_existente = fecha_existente + timedelta(hours=duracion_existente)
+                
+                # Verificar conflicto
+                if fecha_obj < fecha_fin_existente and fecha_fin > fecha_existente:
+                    conflicto_encontrado = True
+                    cita_conflicto_info = {
+                        "inicio": fecha_existente.strftime("%I:%M %p"),
+                        "fin": fecha_fin_existente.strftime("%I:%M %p"),
+                        "fecha": fecha_existente.strftime("%B %d, %Y")
+                    }
+                    print(f"   ❌ CONFLICTO: {fecha_existente.strftime('%H:%M')} - {fecha_fin_existente.strftime('%H:%M')}")
+                    break
+                    
+            except Exception as e:
+                print(f"   ⚠️ Error procesando cita: {e}")
+                continue
+        
+        if conflicto_encontrado:
+            if cita_conflicto_info:
+                messages.error(
+                    request,
+                    f"This veterinarian is already booked from {cita_conflicto_info['inicio']} to {cita_conflicto_info['fin']} on {cita_conflicto_info['fecha']}. Please choose a different time."
+                )
+            else:
+                messages.error(request, "This veterinarian is already booked during that time. Please choose a different time.")
+            
+            cita["id_str"] = str(cita["_id"])
+            return render(request, "appointments_form.html", {
+                "cita": cita,
+                "mascotas": mascotas,
+                "vets": vets,
+                "action": "Edit",
+                "rol": rol,
+                "username": username
+            })
+        
+        # ✅ TODO OK: Actualizar la cita
+        print(f"✅ Horario disponible, actualizando cita...")
+        
         citas.update_one({"_id": ObjectId(id)}, {"$set": {
             "id_paciente": id_paciente,
             "id_veterinario": id_veterinario,
             "fecha": fecha_obj.strftime("%Y-%m-%dT%H:%M"),
+            "fecha_fin": fecha_fin.strftime("%Y-%m-%dT%H:%M"),
             "motivo": motivo,
+            "duracion": duracion,
         }})
         
-        messages.success(request, "Appointment updated successfully.")
+        messages.success(request, "Appointment updated successfully!")
         return redirect("list_citas")
 
     # Preparar datos de la cita para el formulario

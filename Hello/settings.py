@@ -59,11 +59,9 @@ DATABASES = {
     }
 }
 
-# ... el resto de tu configuración original ...
 
 STATIC_URL = 'static/'
 
-# SOLO AGREGA ESTAS 2 LÍNEAS PARA RENDER:
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 ALLOWED_HOSTS = ['*']  # Temporal
 
