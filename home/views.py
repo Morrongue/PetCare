@@ -3118,9 +3118,12 @@ def payment_failure(request, ref_payco):
 # ============================================================================
 # REEMPLAZAR EN views.py - FUNCIÓN prepare_payment
 # ============================================================================
+# ============================================================================
+# REEMPLAZAR EN views.py - FUNCIÓN prepare_payment_demo
+# ============================================================================
 
-def prepare_payment(request):
-    """Prepara los datos para el pago después de validar disponibilidad."""
+def prepare_payment_demo(request):
+    """Prepara la página de pago demo después de validar disponibilidad."""
     if request.method != 'POST':
         return redirect('add_cita')
     
@@ -3229,7 +3232,7 @@ def prepare_payment(request):
             print(f"   ⚠️ Error procesando cita: {e}")
             continue
     
-    # Si hay conflicto, rechazar
+    # Si hay conflicto, rechazar ANTES de ir al pago
     if conflicto_encontrado:
         if cita_conflicto_info:
             messages.error(
@@ -3244,31 +3247,30 @@ def prepare_payment(request):
         return redirect("add_cita")
     
     # ============================================
-    # TODO OK: Guardar en sesión y continuar a pago
+    # TODO OK: Guardar en sesión y continuar a pago demo
     # ============================================
     
-    print(f"✅ Horario disponible, guardando en sesión...")
+    print(f"✅ Horario disponible, preparando pago demo...")
     
-    # Guardar datos en sesión
+    # ✅ Guardar datos en sesión para usar después del pago
     request.session['temp_cita_paciente'] = id_paciente
     request.session['temp_cita_veterinario'] = id_veterinario
     request.session['temp_cita_fecha'] = fecha
     request.session['temp_cita_motivo'] = motivo
     request.session['temp_cita_duracion'] = duracion
     
-    # Obtener información para el pago
+    # Obtener información para mostrar en la página de pago
     mascota = pacientes.find_one({"_id": ObjectId(id_paciente)})
-    veterinario = users.find_one({"_id": ObjectId(id_veterinario)})
+    veterinario = users.find_one({"_id": ObjectId(id_veterinario), "Rol": "Veterinario"})
     
     if not mascota or not veterinario:
         messages.error(request, "Error retrieving data. Please try again.")
         return redirect("add_cita")
     
     # Calcular precio según el motivo
-    from django.conf import settings
     precio = settings.APPOINTMENT_PRICES.get(motivo, settings.DEFAULT_APPOINTMENT_PRICE)
     
-    # Preparar datos para la página de pago
+    # Preparar datos para la página de pago demo
     context = {
         'mascota_nombre': mascota.get('nombre', 'Unknown'),
         'mascota_especie': mascota.get('especie', 'Unknown'),
@@ -3279,10 +3281,9 @@ def prepare_payment(request):
         'precio': precio,
     }
     
+    print(f"💳 Preparando página de pago demo con precio: ${precio:,.0f} COP")
+    
     return render(request, 'payments/payment_demo.html', context)
-#PAYMENTS DEMO
-
-
 def process_demo_payment(request):
     """Procesa el pago demo y envía recibo por email."""
     if request.method != 'POST':
