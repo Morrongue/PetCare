@@ -109,11 +109,12 @@ BUSINESS_ADDRESS = 'Calle 123 #45-67'  # Cambiar por tu dirección real
 BUSINESS_CITY = 'Bogotá'
 
 
-# Para producción con Gmail
+# ✅ DEBE ESTAR ASÍ (para enviar emails reales):
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'santiago.mosquerat@uam.edu.co'
+EMAIL_HOST_USER = 'santiagotabina@gmail.com'
 EMAIL_HOST_PASSWORD = 'wmck ltkk odqb nxhv'
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
