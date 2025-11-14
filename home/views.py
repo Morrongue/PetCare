@@ -3284,6 +3284,8 @@ def prepare_payment_demo(request):
     print(f"💳 Preparando página de pago demo con precio: ${precio:,.0f} COP")
     
     return render(request, 'payments/payment_demo.html', context)
+
+
 def process_demo_payment(request):
     """Procesa el pago demo y envía recibo por email."""
     if request.method != 'POST':
@@ -3291,9 +3293,6 @@ def process_demo_payment(request):
     
     # Obtener datos del formulario
     payment_status = request.POST.get('payment_status')
-    amount = request.POST.get('amount')
-    service = request.POST.get('service')
-    pet_name = request.POST.get('pet_name')
     
     # Obtener datos de la sesión
     id_paciente = request.session.get('temp_cita_paciente')
@@ -3317,11 +3316,17 @@ def process_demo_payment(request):
         messages.error(request, "Error retrieving data. Please try again.")
         return redirect('add_cita')
     
+    # Calcular precio
+    precio = settings.APPOINTMENT_PRICES.get(motivo, settings.DEFAULT_APPOINTMENT_PRICE)
+    
     # Procesar según el estado del pago
     if payment_status == 'approved':
         # ✅ PAGO APROBADO - Crear la cita
         fecha_obj = datetime.strptime(fecha, "%Y-%m-%dT%H:%M")
         fecha_fin = fecha_obj + timedelta(hours=int(duracion))
+        
+        # Generar referencia única
+        payment_reference = f"PAY-{datetime.now().strftime('%Y%m%d%H%M%S')}"
         
         nueva_cita = {
             "id_paciente": id_paciente,
@@ -3336,9 +3341,9 @@ def process_demo_payment(request):
             "fecha_observacion": "",
             "veterinario_observacion": "",
             "payment_status": "approved",
-            "payment_amount": amount,
+            "payment_amount": precio,
             "payment_date": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-            "payment_reference": f"PAY-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            "payment_reference": payment_reference
         }
         
         result = citas.insert_one(nueva_cita)
@@ -3360,27 +3365,30 @@ def process_demo_payment(request):
             }
             
             pago_data = {
-                "referencia": nueva_cita["payment_reference"],
+                "referencia": payment_reference,
                 "fecha": datetime.now().strftime("%B %d, %Y %I:%M %p"),
-                "monto": float(amount),
+                "monto": float(precio),
                 "metodo": "Demo Payment (Approved)",
             }
             
             # Enviar recibo por email
-            email_enviado = enviar_recibo_email(cita_data, pago_data, user.get("Email", ""))
-            
-            if email_enviado:
-                print(f"✅ Recibo enviado a {user.get('Email')}")
-                messages.success(
-                    request, 
-                    f"Payment approved! Appointment confirmed. Receipt sent to {user.get('Email')}."
-                )
+            if user.get("Email"):
+                email_enviado = enviar_recibo_email(cita_data, pago_data, user.get("Email"))
+                
+                if email_enviado:
+                    print(f"✅ Recibo enviado a {user.get('Email')}")
+                    messages.success(
+                        request, 
+                        f"Payment approved! Appointment confirmed. Receipt sent to {user.get('Email')}."
+                    )
+                else:
+                    print(f"⚠️ Cita creada pero el recibo no se pudo enviar")
+                    messages.success(
+                        request, 
+                        "Payment approved! Appointment confirmed. (Receipt email failed)"
+                    )
             else:
-                print(f"⚠️ Cita creada pero el recibo no se pudo enviar")
-                messages.success(
-                    request, 
-                    "Payment approved! Appointment confirmed. (Receipt email failed)"
-                )
+                messages.success(request, "Payment approved! Appointment confirmed.")
                 
         except Exception as e:
             print(f"❌ Error al enviar recibo: {e}")
@@ -3395,12 +3403,15 @@ def process_demo_payment(request):
             if key in request.session:
                 del request.session[key]
         
-        return redirect('payment_success')
+        # ✅ CORRECCIÓN: Pasar ref_payco como argumento
+        return redirect('payment_success', ref_payco=payment_reference)
         
     elif payment_status == 'pending':
         # ⏳ PAGO PENDIENTE - Crear cita con estado pendiente de pago
         fecha_obj = datetime.strptime(fecha, "%Y-%m-%dT%H:%M")
         fecha_fin = fecha_obj + timedelta(hours=int(duracion))
+        
+        payment_reference = f"PAY-{datetime.now().strftime('%Y%m%d%H%M%S')}"
         
         nueva_cita = {
             "id_paciente": id_paciente,
@@ -3415,8 +3426,8 @@ def process_demo_payment(request):
             "fecha_observacion": "",
             "veterinario_observacion": "",
             "payment_status": "pending",
-            "payment_amount": amount,
-            "payment_reference": f"PAY-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            "payment_amount": precio,
+            "payment_reference": payment_reference
         }
         
         citas.insert_one(nueva_cita)
@@ -3428,7 +3439,9 @@ def process_demo_payment(request):
                 del request.session[key]
         
         messages.warning(request, "Payment pending. Please complete payment to confirm appointment.")
-        return redirect('payment_pending')
+        
+        # ✅ CORRECCIÓN: Pasar ref_payco como argumento
+        return redirect('payment_pending', ref_payco=payment_reference)
         
     else:  # rejected
         # ❌ PAGO RECHAZADO - No crear cita
@@ -3438,6 +3451,8 @@ def process_demo_payment(request):
                 del request.session[key]
         
         messages.error(request, "Payment rejected. Please try again with a different payment method.")
+        
+        # ✅ CORRECCIÓN: Pasar ref_payco dummy (o ir a lista de citas)
         return redirect('payment_failure')
 
 # ✅ NUEVA FUNCIÓN: Completar pago pendiente
