@@ -12,6 +12,16 @@ from datetime import time as dt_time
 import os
 import time 
 import base64
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+from io import BytesIO
+from django.core.mail import EmailMessage
+from django.conf import settings
+import os
 
 # utilidades de ePayco
 from .payments.epayco_utils import (
@@ -3203,84 +3213,162 @@ def prepare_payment_demo(request):
 
 #PAYMENTS DEMO
 
-def process_demo_payment(request):
-    """Procesa el pago demo y crea la cita"""
-    
-    if "user" not in request.session:
-        messages.warning(request, "Por favor inicia sesión primero.")
-        return redirect("login")
-    
-    if request.method != "POST":
-        return redirect("list_citas")
-    
-    # Obtener datos de la cita
-    id_paciente = request.POST.get("id_paciente")
-    id_veterinario = request.POST.get("id_veterinario")
-    fecha = request.POST.get("fecha")
-    fecha_fin = request.POST.get("fecha_fin")
-    motivo = request.POST.get("motivo")
-    duracion = int(request.POST.get("duracion", 1))
-    ref_demo = request.POST.get("ref_demo")
-    precio = request.POST.get("precio")
-    payment_status = request.POST.get("payment_status", "approved")
-    
-    # ✅ CAMBIO: Crear cita para TODOS los estados (approved, pending, rejected)
-    
-    if payment_status == "approved":
-        # Pago aprobado - Cita confirmada
-        citas.insert_one({
-            "id_paciente": id_paciente,
-            "id_veterinario": id_veterinario,
-            "fecha": fecha,
-            "fecha_fin": fecha_fin,
-            "motivo": motivo,
-            "duracion": duracion,
-            "estado": "Pendiente",
-            "payment_id": ref_demo,
-            "payment_status": "paid",
-            "payment_amount": float(precio),
-            "payment_date": datetime.now().isoformat(),
-            "ref_payco": ref_demo,
-            "created_at": datetime.now().isoformat(),
-            "fecha_creacion": datetime.now().strftime("%Y-%m-%dT%H:%M"),
-            "observacion": "",
-            "fecha_observacion": "",
-            "veterinario_observacion": ""
-        })
-        
-        messages.success(request, "¡Pago aprobado exitosamente! Tu cita ha sido confirmada.")
-        return redirect("list_citas")
-    
-    elif payment_status == "pending":
-        # ✅ NUEVO: Pago pendiente - Crear cita pero con estado especial
-        citas.insert_one({
-            "id_paciente": id_paciente,
-            "id_veterinario": id_veterinario,
-            "fecha": fecha,
-            "fecha_fin": fecha_fin,
-            "motivo": motivo,
-            "duracion": duracion,
-            "estado": "Pendiente de Pago",  # Estado especial
-            "payment_id": ref_demo,
-            "payment_status": "pending",
-            "payment_amount": float(precio),
-            "payment_date": None,
-            "ref_payco": ref_demo,
-            "created_at": datetime.now().isoformat(),
-            "fecha_creacion": datetime.now().strftime("%Y-%m-%dT%H:%M"),
-            "observacion": "",
-            "fecha_observacion": "",
-            "veterinario_observacion": ""
-        })
-        
-        messages.warning(request, "Tu cita ha sido registrada con pago PENDIENTE. Completa el pago para confirmarla.")
-        return redirect("list_citas")
-    
-    else:  # rejected
-        # Pago rechazado - No crear cita
-        messages.error(request, "Pago rechazado. Por favor intenta de nuevo con otro método de pago.")
-        return redirect("add_cita")
 
+def process_demo_payment(request):
+    """Procesa el pago demo y envía recibo por email."""
+    if request.method != 'POST':
+        return redirect('list_citas')
+    
+    # Obtener datos del formulario
+    payment_status = request.POST.get('payment_status')
+    amount = request.POST.get('amount')
+    service = request.POST.get('service')
+    pet_name = request.POST.get('pet_name')
+    
+    # Obtener datos de la sesión
+    id_paciente = request.session.get('temp_cita_paciente')
+    id_veterinario = request.session.get('temp_cita_veterinario')
+    fecha = request.session.get('temp_cita_fecha')
+    motivo = request.session.get('temp_cita_motivo')
+    duracion = request.session.get('temp_cita_duracion', 1)
+    
+    # Validar que tenemos todos los datos
+    if not all([id_paciente, id_veterinario, fecha, motivo]):
+        messages.error(request, "Session expired. Please try again.")
+        return redirect('add_cita')
+    
+    # Obtener información adicional
+    username = request.session.get("user")
+    user = users.find_one({"User": username})
+    mascota = pacientes.find_one({"_id": ObjectId(id_paciente)})
+    veterinario = users.find_one({"_id": ObjectId(id_veterinario), "Rol": "Veterinario"})
+    
+    if not all([user, mascota, veterinario]):
+        messages.error(request, "Error retrieving data. Please try again.")
+        return redirect('add_cita')
+    
+    # Procesar según el estado del pago
+    if payment_status == 'approved':
+        # ✅ PAGO APROBADO - Crear la cita
+        fecha_obj = datetime.strptime(fecha, "%Y-%m-%dT%H:%M")
+        fecha_fin = fecha_obj + timedelta(hours=int(duracion))
+        
+        nueva_cita = {
+            "id_paciente": id_paciente,
+            "id_veterinario": id_veterinario,
+            "fecha": fecha,
+            "fecha_fin": fecha_fin.strftime("%Y-%m-%dT%H:%M"),
+            "motivo": motivo,
+            "estado": "Pendiente",
+            "duracion": int(duracion),
+            "fecha_creacion": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+            "observacion": "",
+            "fecha_observacion": "",
+            "veterinario_observacion": "",
+            "payment_status": "approved",
+            "payment_amount": amount,
+            "payment_date": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+            "payment_reference": f"PAY-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        }
+        
+        result = citas.insert_one(nueva_cita)
+        cita_id = str(result.inserted_id)
+        
+        # 📧 GENERAR Y ENVIAR RECIBO POR EMAIL
+        try:
+            # Preparar datos para el recibo
+            cita_data = {
+                "mascota_nombre": mascota.get("nombre", "N/A"),
+                "mascota_especie": mascota.get("especie", "N/A"),
+                "veterinario_nombre": veterinario.get("nombre", "Unknown"),
+                "fecha": fecha_obj.strftime("%B %d, %Y at %I:%M %p"),
+                "motivo": motivo,
+                "duracion": duracion,
+                "cliente_nombre": user.get("nombre", user.get("User", "N/A")),
+                "cliente_email": user.get("Email", ""),
+                "cliente_telefono": user.get("Phone", "N/A"),
+            }
+            
+            pago_data = {
+                "referencia": nueva_cita["payment_reference"],
+                "fecha": datetime.now().strftime("%B %d, %Y %I:%M %p"),
+                "monto": float(amount),
+                "metodo": "Demo Payment (Approved)",
+            }
+            
+            # Enviar recibo por email
+            email_enviado = enviar_recibo_email(cita_data, pago_data, user.get("Email", ""))
+            
+            if email_enviado:
+                print(f"✅ Recibo enviado a {user.get('Email')}")
+                messages.success(
+                    request, 
+                    f"Payment approved! Appointment confirmed. Receipt sent to {user.get('Email')}."
+                )
+            else:
+                print(f"⚠️ Cita creada pero el recibo no se pudo enviar")
+                messages.success(
+                    request, 
+                    "Payment approved! Appointment confirmed. (Receipt email failed)"
+                )
+                
+        except Exception as e:
+            print(f"❌ Error al enviar recibo: {e}")
+            messages.success(
+                request, 
+                "Payment approved! Appointment confirmed. (Receipt email error)"
+            )
+        
+        # Limpiar sesión
+        for key in ['temp_cita_paciente', 'temp_cita_veterinario', 'temp_cita_fecha', 
+                    'temp_cita_motivo', 'temp_cita_duracion']:
+            if key in request.session:
+                del request.session[key]
+        
+        return redirect('payment_success')
+        
+    elif payment_status == 'pending':
+        # ⏳ PAGO PENDIENTE - Crear cita con estado pendiente de pago
+        fecha_obj = datetime.strptime(fecha, "%Y-%m-%dT%H:%M")
+        fecha_fin = fecha_obj + timedelta(hours=int(duracion))
+        
+        nueva_cita = {
+            "id_paciente": id_paciente,
+            "id_veterinario": id_veterinario,
+            "fecha": fecha,
+            "fecha_fin": fecha_fin.strftime("%Y-%m-%dT%H:%M"),
+            "motivo": motivo,
+            "estado": "Pendiente de Pago",
+            "duracion": int(duracion),
+            "fecha_creacion": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+            "observacion": "",
+            "fecha_observacion": "",
+            "veterinario_observacion": "",
+            "payment_status": "pending",
+            "payment_amount": amount,
+            "payment_reference": f"PAY-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        }
+        
+        citas.insert_one(nueva_cita)
+        
+        # Limpiar sesión
+        for key in ['temp_cita_paciente', 'temp_cita_veterinario', 'temp_cita_fecha', 
+                    'temp_cita_motivo', 'temp_cita_duracion']:
+            if key in request.session:
+                del request.session[key]
+        
+        messages.warning(request, "Payment pending. Please complete payment to confirm appointment.")
+        return redirect('payment_pending')
+        
+    else:  # rejected
+        # ❌ PAGO RECHAZADO - No crear cita
+        for key in ['temp_cita_paciente', 'temp_cita_veterinario', 'temp_cita_fecha', 
+                    'temp_cita_motivo', 'temp_cita_duracion']:
+            if key in request.session:
+                del request.session[key]
+        
+        messages.error(request, "Payment rejected. Please try again with a different payment method.")
+        return redirect('payment_failure')
 
 # ✅ NUEVA FUNCIÓN: Completar pago pendiente
 def complete_pending_payment(request, cita_id):
@@ -3396,3 +3484,312 @@ def process_pending_payment(request, cita_id):
     else:  # pending again
         messages.warning(request, "El pago sigue pendiente.")
         return redirect("list_citas")
+    
+
+
+
+# ============================================================================
+# FUNCIÓN PARA GENERAR RECIBO PDF
+# ============================================================================
+
+def generar_recibo_pdf(cita_data, pago_data):
+    """
+    Genera un recibo en PDF para una cita pagada.
+    
+    Args:
+        cita_data: Diccionario con datos de la cita
+        pago_data: Diccionario con datos del pago
+    
+    Returns:
+        BytesIO: Buffer con el PDF generado
+    """
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # Estilos personalizados
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.HexColor('#6B8E23'),
+        spaceAfter=30,
+        alignment=TA_CENTER,
+        fontName='Helvetica-Bold'
+    )
+    
+    subtitle_style = ParagraphStyle(
+        'CustomSubtitle',
+        parent=styles['Heading2'],
+        fontSize=16,
+        textColor=colors.HexColor('#556B2F'),
+        spaceAfter=12,
+        fontName='Helvetica-Bold'
+    )
+    
+    normal_style = ParagraphStyle(
+        'CustomNormal',
+        parent=styles['Normal'],
+        fontSize=11,
+        spaceAfter=6
+    )
+    
+    # HEADER
+    elements.append(Paragraph("🐾 PETCARE VETERINARY CLINIC", title_style))
+    elements.append(Paragraph("Payment Receipt", subtitle_style))
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # LÍNEA DIVISORIA
+    line_table = Table([['', '']], colWidths=[6*inch])
+    line_table.setStyle(TableStyle([
+        ('LINEBELOW', (0, 0), (-1, 0), 2, colors.HexColor('#6B8E23')),
+    ]))
+    elements.append(line_table)
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # INFORMACIÓN DE LA TRANSACCIÓN
+    elements.append(Paragraph("<b>TRANSACTION DETAILS</b>", subtitle_style))
+    
+    transaction_data = [
+        ['Receipt Number:', pago_data.get('referencia', 'N/A')],
+        ['Transaction Date:', pago_data.get('fecha', datetime.now().strftime('%B %d, %Y %I:%M %p'))],
+        ['Payment Status:', '✅ APPROVED'],
+        ['Payment Method:', pago_data.get('metodo', 'Demo Payment')],
+    ]
+    
+    transaction_table = Table(transaction_data, colWidths=[2*inch, 4*inch])
+    transaction_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#F0F0F0')),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 12),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(transaction_table)
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # INFORMACIÓN DEL CLIENTE
+    elements.append(Paragraph("<b>CLIENT INFORMATION</b>", subtitle_style))
+    
+    client_data = [
+        ['Client Name:', cita_data.get('cliente_nombre', 'N/A')],
+        ['Email:', cita_data.get('cliente_email', 'N/A')],
+        ['Phone:', cita_data.get('cliente_telefono', 'N/A')],
+    ]
+    
+    client_table = Table(client_data, colWidths=[2*inch, 4*inch])
+    client_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#F0F0F0')),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 12),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(client_table)
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # INFORMACIÓN DE LA CITA
+    elements.append(Paragraph("<b>APPOINTMENT DETAILS</b>", subtitle_style))
+    
+    appointment_data = [
+        ['Pet Name:', cita_data.get('mascota_nombre', 'N/A')],
+        ['Pet Species:', cita_data.get('mascota_especie', 'N/A')],
+        ['Veterinarian:', f"Dr. {cita_data.get('veterinario_nombre', 'N/A')}"],
+        ['Date & Time:', cita_data.get('fecha', 'N/A')],
+        ['Service:', cita_data.get('motivo', 'N/A')],
+        ['Duration:', f"{cita_data.get('duracion', 1)} hour(s)"],
+    ]
+    
+    appointment_table = Table(appointment_data, colWidths=[2*inch, 4*inch])
+    appointment_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#F0F0F0')),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 12),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(appointment_table)
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # DESGLOSE DE PAGO
+    elements.append(Paragraph("<b>PAYMENT BREAKDOWN</b>", subtitle_style))
+    
+    payment_data = [
+        ['Description', 'Amount'],
+        ['Service Fee', f"${pago_data.get('monto', 0):,.2f} COP"],
+        ['Tax (0%)', '$0.00 COP'],
+        ['', ''],
+        ['TOTAL PAID', f"${pago_data.get('monto', 0):,.2f} COP"],
+    ]
+    
+    payment_table = Table(payment_data, colWidths=[4*inch, 2*inch])
+    payment_table.setStyle(TableStyle([
+        # Header
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#6B8E23')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 11),
+        
+        # Content
+        ('ALIGN', (0, 1), (0, -2), 'LEFT'),
+        ('ALIGN', (1, 1), (1, -2), 'RIGHT'),
+        ('FONTNAME', (0, 1), (-1, -2), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -2), 10),
+        
+        # Línea divisoria
+        ('LINEABOVE', (0, 3), (-1, 3), 1, colors.grey),
+        
+        # Total
+        ('BACKGROUND', (0, 4), (-1, 4), colors.HexColor('#F0F0F0')),
+        ('TEXTCOLOR', (0, 4), (-1, 4), colors.black),
+        ('ALIGN', (0, 4), (0, 4), 'RIGHT'),
+        ('ALIGN', (1, 4), (1, 4), 'RIGHT'),
+        ('FONTNAME', (0, 4), (-1, 4), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 4), (-1, 4), 12),
+        
+        # General
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 12),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+    ]))
+    elements.append(payment_table)
+    elements.append(Spacer(1, 0.4*inch))
+    
+    # FOOTER
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=colors.grey,
+        alignment=TA_CENTER
+    )
+    
+    elements.append(Spacer(1, 0.2*inch))
+    elements.append(Paragraph("─" * 80, footer_style))
+    elements.append(Spacer(1, 0.1*inch))
+    elements.append(Paragraph(
+        "<b>Thank you for choosing PetCare Veterinary Clinic!</b>",
+        footer_style
+    ))
+    elements.append(Paragraph(
+        "For questions about this receipt, please contact us at support@petcare.com or call (555) 123-4567",
+        footer_style
+    ))
+    elements.append(Paragraph(
+        "This is an electronic receipt. No signature required.",
+        footer_style
+    ))
+    
+    # Construir el PDF
+    doc.build(elements)
+    buffer.seek(0)
+    return buffer
+
+
+# ============================================================================
+# FUNCIÓN PARA ENVIAR EMAIL CON RECIBO
+# ============================================================================
+
+def enviar_recibo_email(cita_data, pago_data, destinatario_email):
+    """
+    Envía el recibo de pago por email.
+    
+    Args:
+        cita_data: Datos de la cita
+        pago_data: Datos del pago
+        destinatario_email: Email del destinatario
+    
+    Returns:
+        bool: True si se envió correctamente, False en caso contrario
+    """
+    try:
+        # Generar PDF
+        pdf_buffer = generar_recibo_pdf(cita_data, pago_data)
+        
+        # Crear email
+        subject = f"Payment Receipt - PetCare Appointment #{pago_data.get('referencia', 'N/A')}"
+        
+        body = f"""
+Dear {cita_data.get('cliente_nombre', 'Valued Client')},
+
+Thank you for your payment! Your appointment has been successfully confirmed.
+
+APPOINTMENT SUMMARY:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Pet: {cita_data.get('mascota_nombre', 'N/A')} ({cita_data.get('mascota_especie', 'N/A')})
+Veterinarian: Dr. {cita_data.get('veterinario_nombre', 'N/A')}
+Date & Time: {cita_data.get('fecha', 'N/A')}
+Service: {cita_data.get('motivo', 'N/A')}
+
+Amount Paid: ${pago_data.get('monto', 0):,.2f} COP
+Payment Method: {pago_data.get('metodo', 'Demo Payment')}
+Receipt Number: {pago_data.get('referencia', 'N/A')}
+
+Please find your payment receipt attached to this email.
+
+IMPORTANT REMINDERS:
+• Please arrive 10 minutes before your scheduled time
+• Bring your pet's vaccination records if this is your first visit
+• Contact us at (555) 123-4567 if you need to reschedule
+
+We look forward to seeing you and {cita_data.get('mascota_nombre', 'your pet')}!
+
+Best regards,
+PetCare Veterinary Clinic Team
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📍 Address: 123 Main Street, Your City
+📞 Phone: (555) 123-4567
+📧 Email: support@petcare.com
+🌐 Website: www.petcare.com
+        """
+        
+        email = EmailMessage(
+            subject=subject,
+            body=body,
+            from_email=settings.EMAIL_HOST_USER,
+            to=[destinatario_email],
+        )
+        
+        # Adjuntar PDF
+        filename = f"PetCare_Receipt_{pago_data.get('referencia', 'N/A')}.pdf"
+        email.attach(filename, pdf_buffer.getvalue(), 'application/pdf')
+        
+        # Enviar
+        email.send()
+        
+        print(f"✅ Recibo enviado a {destinatario_email}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Error al enviar recibo: {e}")
+        return False
