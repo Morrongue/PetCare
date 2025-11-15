@@ -115,6 +115,6 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'santiagotabina@gmail.com'
-EMAIL_HOST_PASSWORD = 'wmck ltkk odqb nxhv'
+EMAIL_HOST_PASSWORD = 'xaqm txei kzvq ahbh'
 DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 
