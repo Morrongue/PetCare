@@ -3289,9 +3289,8 @@ def prepare_payment_demo(request):
 
 # -------------------- PROCESAR PAGO DEMO (RÁPIDO, EMAIL ASÍNCRONO) --------------------
 
-
 def process_demo_payment(request):
-    """Procesa el pago demo de forma rápida (email asíncrono)."""
+    """Procesa el pago demo con manejo robusto de errores."""
     
     try:
         if request.method != 'POST':
@@ -3310,6 +3309,12 @@ def process_demo_payment(request):
         motivo = request.session.get('temp_cita_motivo')
         duracion = request.session.get('temp_cita_duracion', 1)
         
+        print(f"📦 Datos de sesión:")
+        print(f"   Paciente: {id_paciente}")
+        print(f"   Veterinario: {id_veterinario}")
+        print(f"   Fecha: {fecha}")
+        print(f"   Motivo: {motivo}")
+        
         # Validar que tenemos todos los datos
         if not all([id_paciente, id_veterinario, fecha, motivo]):
             print("❌ Faltan datos en sesión")
@@ -3318,150 +3323,188 @@ def process_demo_payment(request):
         
         # Obtener usuario
         username = request.session.get("user")
+        if not username:
+            print("❌ Usuario no encontrado en sesión")
+            messages.error(request, "Please log in.")
+            return redirect('login')
+        
         user = users.find_one({"User": username})
         if not user:
+            print(f"❌ Usuario {username} no encontrado en BD")
             messages.error(request, "User not found.")
             return redirect('login')
         
-        # Obtener mascota y veterinario
-        mascota = pacientes.find_one({"_id": ObjectId(id_paciente)})
-        veterinario = users.find_one({"_id": ObjectId(id_veterinario), "Rol": "Veterinario"})
+        print(f"✅ Usuario: {user.get('User')} ({user.get('Email')})")
         
-        if not mascota or not veterinario:
-            messages.error(request, "Error retrieving data.")
+        # Obtener mascota
+        try:
+            mascota = pacientes.find_one({"_id": ObjectId(id_paciente)})
+            if not mascota:
+                print(f"❌ Mascota {id_paciente} no encontrada")
+                messages.error(request, "Pet not found.")
+                return redirect('add_cita')
+            print(f"✅ Mascota: {mascota.get('nombre')}")
+        except Exception as e:
+            print(f"❌ Error al buscar mascota: {e}")
+            messages.error(request, "Error retrieving pet information.")
+            return redirect('add_cita')
+        
+        # Obtener veterinario
+        try:
+            veterinario = users.find_one({"_id": ObjectId(id_veterinario), "Rol": "Veterinario"})
+            if not veterinario:
+                print(f"❌ Veterinario {id_veterinario} no encontrado")
+                messages.error(request, "Veterinarian not found.")
+                return redirect('add_cita')
+            print(f"✅ Veterinario: Dr. {veterinario.get('nombre')}")
+        except Exception as e:
+            print(f"❌ Error al buscar veterinario: {e}")
+            messages.error(request, "Error retrieving veterinarian information.")
             return redirect('add_cita')
         
         # Calcular precio
-        precio = settings.APPOINTMENT_PRICES.get(motivo, settings.DEFAULT_APPOINTMENT_PRICE)
+        try:
+            precio = settings.APPOINTMENT_PRICES.get(motivo, settings.DEFAULT_APPOINTMENT_PRICE)
+            print(f"💰 Precio: ${precio:,.0f} COP")
+        except Exception as e:
+            print(f"❌ Error al calcular precio: {e}")
+            precio = 50000
         
         # Procesar según estado del pago
         if payment_status == 'approved':
             print("✅ Procesando pago APROBADO...")
             
-            # Parsear fecha
-            fecha_obj = datetime.strptime(fecha, "%Y-%m-%dT%H:%M")
-            fecha_fin = fecha_obj + timedelta(hours=int(duracion))
-            
-            # Generar referencia única
-            payment_reference = f"PAY-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-            
-            # ✅ CREAR CITA INMEDIATAMENTE (RÁPIDO)
-            nueva_cita = {
-                "id_paciente": id_paciente,
-                "id_veterinario": id_veterinario,
-                "fecha": fecha,
-                "fecha_fin": fecha_fin.strftime("%Y-%m-%dT%H:%M"),
-                "motivo": motivo,
-                "estado": "Pendiente",
-                "duracion": int(duracion),
-                "fecha_creacion": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-                "observacion": "",
-                "fecha_observacion": "",
-                "veterinario_observacion": "",
-                "payment_status": "approved",
-                "payment_amount": precio,
-                "payment_date": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-                "payment_reference": payment_reference
-            }
-            
-            result = citas.insert_one(nueva_cita)
-            print(f"✅ Cita creada con ID: {result.inserted_id}")
-            
-            # ✅ ENVIAR EMAIL EN SEGUNDO PLANO (NO BLOQUEANTE)
-            if user.get("Email"):
-                print(f"📧 Programando envío de email a {user.get('Email')} en segundo plano")
+            try:
+                # Parsear fecha
+                fecha_obj = datetime.strptime(fecha, "%Y-%m-%dT%H:%M")
+                fecha_fin = fecha_obj + timedelta(hours=int(duracion))
                 
-                # Preparar datos para el thread
-                cita_data = {
-                    "mascota_nombre": mascota.get("nombre", "N/A"),
-                    "mascota_especie": mascota.get("especie", "N/A"),
-                    "veterinario_nombre": veterinario.get("nombre", "Unknown"),
-                    "fecha": fecha_obj.strftime("%B %d, %Y at %I:%M %p"),
+                # Generar referencia única
+                payment_reference = f"PAY-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                
+                print(f"📝 Creando cita con referencia: {payment_reference}")
+                
+                # Crear cita
+                nueva_cita = {
+                    "id_paciente": id_paciente,
+                    "id_veterinario": id_veterinario,
+                    "fecha": fecha,
+                    "fecha_fin": fecha_fin.strftime("%Y-%m-%dT%H:%M"),
                     "motivo": motivo,
-                    "duracion": duracion,
-                    "cliente_nombre": user.get("nombre", user.get("User", "N/A")),
-                    "cliente_email": user.get("Email", ""),
-                    "cliente_telefono": user.get("Phone", "N/A"),
+                    "estado": "Pendiente",
+                    "duracion": int(duracion),
+                    "fecha_creacion": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                    "observacion": "",
+                    "fecha_observacion": "",
+                    "veterinario_observacion": "",
+                    "payment_status": "approved",
+                    "payment_amount": precio,
+                    "payment_date": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                    "payment_reference": payment_reference
                 }
                 
-                pago_data = {
-                    "referencia": payment_reference,
-                    "fecha": datetime.now().strftime("%B %d, %Y %I:%M %p"),
-                    "monto": float(precio),
-                    "metodo": "Demo Payment (Approved)",
-                }
+                result = citas.insert_one(nueva_cita)
+                print(f"✅ Cita creada con ID: {result.inserted_id}")
                 
-                # Crear thread para enviar email
-                def enviar_email_background():
-                    try:
-                        print("📧 [Thread] Iniciando envío de email...")
+                # Intentar enviar recibo por email
+                try:
+                    if user.get("Email"):
+                        print(f"📧 Intentando enviar recibo a {user.get('Email')}")
+                        
+                        cita_data = {
+                            "mascota_nombre": mascota.get("nombre", "N/A"),
+                            "mascota_especie": mascota.get("especie", "N/A"),
+                            "veterinario_nombre": veterinario.get("nombre", "Unknown"),
+                            "fecha": fecha_obj.strftime("%B %d, %Y at %I:%M %p"),
+                            "motivo": motivo,
+                            "duracion": duracion,
+                            "cliente_nombre": user.get("nombre", user.get("User", "N/A")),
+                            "cliente_email": user.get("Email", ""),
+                            "cliente_telefono": user.get("Phone", "N/A"),
+                        }
+                        
+                        pago_data = {
+                            "referencia": payment_reference,
+                            "fecha": datetime.now().strftime("%B %d, %Y %I:%M %p"),
+                            "monto": float(precio),
+                            "metodo": "Demo Payment (Approved)",
+                        }
+                        
                         email_enviado = enviar_recibo_email(cita_data, pago_data, user.get("Email"))
+                        
                         if email_enviado:
-                            print(f"✅ [Thread] Recibo enviado exitosamente a {user.get('Email')}")
+                            print(f"✅ Recibo enviado exitosamente")
+                            messages.success(request, f"Payment approved! Appointment confirmed. Receipt sent to {user.get('Email')}.")
                         else:
-                            print(f"⚠️ [Thread] No se pudo enviar el recibo")
-                    except Exception as e:
-                        print(f"❌ [Thread] Error al enviar recibo: {e}")
-                        import traceback
-                        traceback.print_exc()
+                            print(f"⚠️ No se pudo enviar el recibo")
+                            messages.success(request, "Payment approved! Appointment confirmed.")
+                    else:
+                        print("⚠️ Usuario sin email")
+                        messages.success(request, "Payment approved! Appointment confirmed.")
+                        
+                except Exception as e:
+                    print(f"⚠️ Error al enviar recibo (no crítico): {e}")
+                    messages.success(request, "Payment approved! Appointment confirmed.")
                 
-                # Ejecutar en thread separado
-                email_thread = threading.Thread(target=enviar_email_background, daemon=True)
-                email_thread.start()
+                # Limpiar sesión
+                for key in ['temp_cita_paciente', 'temp_cita_veterinario', 'temp_cita_fecha', 
+                            'temp_cita_motivo', 'temp_cita_duracion']:
+                    if key in request.session:
+                        del request.session[key]
                 
-                messages.success(
-                    request, 
-                    f"Payment approved! Appointment confirmed. Receipt will be sent to {user.get('Email')}."
-                )
-            else:
-                messages.success(request, "Payment approved! Appointment confirmed.")
-            
-            # Limpiar sesión
-            for key in ['temp_cita_paciente', 'temp_cita_veterinario', 'temp_cita_fecha', 
-                        'temp_cita_motivo', 'temp_cita_duracion']:
-                if key in request.session:
-                    del request.session[key]
-            
-            print(f"✅ Redirigiendo a success (email se enviará en segundo plano)")
-            
-            # ✅ REDIRIGIR INMEDIATAMENTE (NO ESPERAR EMAIL)
-            return redirect('payment_success', ref_payco=payment_reference)
+                print(f"✅ Sesión limpiada, redirigiendo a success")
+                
+                # Redirigir a página de éxito
+                return redirect('payment_success', ref_payco=payment_reference)
+                
+            except Exception as e:
+                print(f"❌ ERROR CRÍTICO al procesar pago aprobado: {e}")
+                import traceback
+                traceback.print_exc()
+                messages.error(request, f"Error processing payment: {str(e)}")
+                return redirect('add_cita')
         
         elif payment_status == 'pending':
             print("⏳ Procesando pago PENDIENTE...")
             
-            fecha_obj = datetime.strptime(fecha, "%Y-%m-%dT%H:%M")
-            fecha_fin = fecha_obj + timedelta(hours=int(duracion))
-            payment_reference = f"PAY-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-            
-            nueva_cita = {
-                "id_paciente": id_paciente,
-                "id_veterinario": id_veterinario,
-                "fecha": fecha,
-                "fecha_fin": fecha_fin.strftime("%Y-%m-%dT%H:%M"),
-                "motivo": motivo,
-                "estado": "Pendiente de Pago",
-                "duracion": int(duracion),
-                "fecha_creacion": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
-                "observacion": "",
-                "fecha_observacion": "",
-                "veterinario_observacion": "",
-                "payment_status": "pending",
-                "payment_amount": precio,
-                "payment_reference": payment_reference
-            }
-            
-            citas.insert_one(nueva_cita)
-            print(f"✅ Cita creada con pago pendiente")
-            
-            # Limpiar sesión
-            for key in ['temp_cita_paciente', 'temp_cita_veterinario', 'temp_cita_fecha', 
-                        'temp_cita_motivo', 'temp_cita_duracion']:
-                if key in request.session:
-                    del request.session[key]
-            
-            messages.warning(request, "Payment pending. Please complete payment to confirm appointment.")
-            return redirect('list_citas')
+            try:
+                fecha_obj = datetime.strptime(fecha, "%Y-%m-%dT%H:%M")
+                fecha_fin = fecha_obj + timedelta(hours=int(duracion))
+                payment_reference = f"PAY-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                
+                nueva_cita = {
+                    "id_paciente": id_paciente,
+                    "id_veterinario": id_veterinario,
+                    "fecha": fecha,
+                    "fecha_fin": fecha_fin.strftime("%Y-%m-%dT%H:%M"),
+                    "motivo": motivo,
+                    "estado": "Pendiente de Pago",
+                    "duracion": int(duracion),
+                    "fecha_creacion": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                    "observacion": "",
+                    "fecha_observacion": "",
+                    "veterinario_observacion": "",
+                    "payment_status": "pending",
+                    "payment_amount": precio,
+                    "payment_reference": payment_reference
+                }
+                
+                citas.insert_one(nueva_cita)
+                print(f"✅ Cita creada con pago pendiente")
+                
+                # Limpiar sesión
+                for key in ['temp_cita_paciente', 'temp_cita_veterinario', 'temp_cita_fecha', 
+                            'temp_cita_motivo', 'temp_cita_duracion']:
+                    if key in request.session:
+                        del request.session[key]
+                
+                messages.warning(request, "Payment pending. Please complete payment to confirm appointment.")
+                return redirect('list_citas')
+                
+            except Exception as e:
+                print(f"❌ Error al procesar pago pendiente: {e}")
+                messages.error(request, "Error processing payment.")
+                return redirect('add_cita')
         
         else:  # rejected
             print("❌ Procesando pago RECHAZADO...")
@@ -3787,23 +3830,39 @@ def generar_recibo_pdf(cita_data, pago_data):
         return None
 
 
+from smtplib import SMTPAuthenticationError, SMTPException, SMTPServerDisconnected
+from socket import gaierror
+
 def enviar_recibo_email(cita_data, pago_data, destinatario_email):
-    """Envía el recibo de pago por email."""
+    """Envía el recibo de pago por email con manejo detallado de errores."""
     try:
-        print(f"📧 [enviar_recibo_email] Iniciando...")
+        print(f"\n{'='*60}")
+        print(f"📧 [enviar_recibo_email] INICIANDO")
+        print(f"{'='*60}")
         print(f"📧 Destinatario: {destinatario_email}")
+        print(f"📧 Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         
         # Generar PDF
-        print(f"📧 Generando PDF...")
+        print(f"📧 Paso 1: Generando PDF...")
         pdf_buffer = generar_recibo_pdf(cita_data, pago_data)
         
         if not pdf_buffer:
             print(f"❌ No se pudo generar el PDF")
             return False
         
-        print(f"✅ PDF generado exitosamente")
+        print(f"✅ PDF generado exitosamente ({pdf_buffer.getbuffer().nbytes} bytes)")
+        
+        # Verificar configuración SMTP
+        print(f"\n📧 Paso 2: Verificando configuración SMTP...")
+        print(f"   EMAIL_BACKEND: {settings.EMAIL_BACKEND}")
+        print(f"   EMAIL_HOST: {settings.EMAIL_HOST}")
+        print(f"   EMAIL_PORT: {settings.EMAIL_PORT}")
+        print(f"   EMAIL_USE_TLS: {settings.EMAIL_USE_TLS}")
+        print(f"   EMAIL_HOST_USER: {settings.EMAIL_HOST_USER}")
+        print(f"   DEFAULT_FROM_EMAIL: {settings.DEFAULT_FROM_EMAIL}")
         
         # Crear email
+        print(f"\n📧 Paso 3: Creando mensaje de email...")
         subject = f"Payment Receipt - PetCare Appointment #{pago_data.get('referencia', 'N/A')}"
         
         body = f"""
@@ -3841,28 +3900,96 @@ PetCare Veterinary Clinic Team
 🌐 Website: www.petcare.com
         """
         
-        print(f"📧 Creando EmailMessage...")
         email = EmailMessage(
             subject=subject,
             body=body,
-            from_email=settings.EMAIL_HOST_USER,
+            from_email=settings.DEFAULT_FROM_EMAIL,
             to=[destinatario_email],
         )
         
         # Adjuntar PDF
         filename = f"PetCare_Receipt_{pago_data.get('referencia', 'N/A')}.pdf"
-        print(f"📧 Adjuntando PDF: {filename}")
+        print(f"✅ Mensaje creado")
+        print(f"   Subject: {subject}")
+        print(f"   From: {settings.DEFAULT_FROM_EMAIL}")
+        print(f"   To: {destinatario_email}")
+        print(f"   Attachment: {filename} ({pdf_buffer.getbuffer().nbytes} bytes)")
+        
         email.attach(filename, pdf_buffer.getvalue(), 'application/pdf')
         
-        # Enviar
-        print(f"📧 Enviando email...")
-        email.send()
+        # Enviar (con fail_silently=False para capturar errores)
+        print(f"\n📧 Paso 4: Enviando email via SMTP...")
+        print(f"   Conectando a {settings.EMAIL_HOST}:{settings.EMAIL_PORT}...")
         
-        print(f"✅ Email enviado exitosamente a {destinatario_email}")
+        result = email.send(fail_silently=False)
+        
+        print(f"\n✅ EMAIL ENVIADO EXITOSAMENTE")
+        print(f"   email.send() retornó: {result}")
+        print(f"   Destinatario: {destinatario_email}")
+        print(f"{'='*60}\n")
+        
         return True
         
+    except SMTPAuthenticationError as e:
+        print(f"\n❌ ERROR DE AUTENTICACIÓN SMTP")
+        print(f"{'='*60}")
+        print(f"Tipo: SMTPAuthenticationError")
+        print(f"Mensaje: {e}")
+        print(f"\n🔍 DIAGNÓSTICO:")
+        print(f"   ❌ Gmail rechazó el usuario/contraseña")
+        print(f"   ❌ Posibles causas:")
+        print(f"      1. Contraseña de aplicación incorrecta")
+        print(f"      2. Contraseña expirada o revocada")
+        print(f"      3. Gmail bloqueó el acceso por seguridad")
+        print(f"      4. Verificación en 2 pasos desactivada")
+        print(f"\n✅ SOLUCIONES:")
+        print(f"   1. Regenerar contraseña de aplicación:")
+        print(f"      https://myaccount.google.com/apppasswords")
+        print(f"   2. Revisar alertas de seguridad en Gmail")
+        print(f"   3. Verificar que 2FA esté activo")
+        print(f"{'='*60}\n")
+        return False
+        
+    except SMTPServerDisconnected as e:
+        print(f"\n❌ ERROR: SERVIDOR SMTP DESCONECTADO")
+        print(f"{'='*60}")
+        print(f"Tipo: SMTPServerDisconnected")
+        print(f"Mensaje: {e}")
+        print(f"\n🔍 DIAGNÓSTICO:")
+        print(f"   ❌ El servidor cerró la conexión inesperadamente")
+        print(f"   ❌ Posibles causas:")
+        print(f"      1. Gmail detectó actividad sospechosa")
+        print(f"      2. Límite de emails excedido")
+        print(f"      3. Problema de red")
+        print(f"{'='*60}\n")
+        return False
+        
+    except gaierror as e:
+        print(f"\n❌ ERROR DE RED")
+        print(f"{'='*60}")
+        print(f"Tipo: gaierror (DNS/Network)")
+        print(f"Mensaje: {e}")
+        print(f"\n🔍 DIAGNÓSTICO:")
+        print(f"   ❌ No se pudo conectar a smtp.gmail.com")
+        print(f"   ❌ Verifica EMAIL_HOST en settings.py")
+        print(f"{'='*60}\n")
+        return False
+        
+    except SMTPException as e:
+        print(f"\n❌ ERROR SMTP GENÉRICO")
+        print(f"{'='*60}")
+        print(f"Tipo: SMTPException")
+        print(f"Mensaje: {e}")
+        print(f"{'='*60}\n")
+        return False
+        
     except Exception as e:
-        print(f"❌ Error al enviar recibo: {e}")
+        print(f"\n❌ ERROR INESPERADO")
+        print(f"{'='*60}")
+        print(f"Tipo: {type(e).__name__}")
+        print(f"Mensaje: {e}")
+        print(f"\n📋 Traceback completo:")
         import traceback
         traceback.print_exc()
+        print(f"{'='*60}\n")
         return False
