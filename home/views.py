@@ -3604,248 +3604,204 @@ def process_pending_payment(request, cita_id):
 # FUNCIÓN PARA GENERAR RECIBO PDF
 # ============================================================================
 
+# ============================================================================
+# AGREGAR ESTAS FUNCIONES EN views.py
+# (Después de los imports y ANTES de process_demo_payment)
+# ============================================================================
+
+from reportlab.lib.pagesizes import letter
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT
+from io import BytesIO
+from django.core.mail import EmailMessage
+from django.conf import settings
+
+
 def generar_recibo_pdf(cita_data, pago_data):
-    """
-    Genera un recibo en PDF para una cita pagada.
-    
-    Args:
-        cita_data: Diccionario con datos de la cita
-        pago_data: Diccionario con datos del pago
-    
-    Returns:
-        BytesIO: Buffer con el PDF generado
-    """
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
-    elements = []
-    styles = getSampleStyleSheet()
-    
-    # Estilos personalizados
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        textColor=colors.HexColor('#6B8E23'),
-        spaceAfter=30,
-        alignment=TA_CENTER,
-        fontName='Helvetica-Bold'
-    )
-    
-    subtitle_style = ParagraphStyle(
-        'CustomSubtitle',
-        parent=styles['Heading2'],
-        fontSize=16,
-        textColor=colors.HexColor('#556B2F'),
-        spaceAfter=12,
-        fontName='Helvetica-Bold'
-    )
-    
-    normal_style = ParagraphStyle(
-        'CustomNormal',
-        parent=styles['Normal'],
-        fontSize=11,
-        spaceAfter=6
-    )
-    
-    # HEADER
-    elements.append(Paragraph("🐾 PETCARE VETERINARY CLINIC", title_style))
-    elements.append(Paragraph("Payment Receipt", subtitle_style))
-    elements.append(Spacer(1, 0.3*inch))
-    
-    # LÍNEA DIVISORIA
-    line_table = Table([['', '']], colWidths=[6*inch])
-    line_table.setStyle(TableStyle([
-        ('LINEBELOW', (0, 0), (-1, 0), 2, colors.HexColor('#6B8E23')),
-    ]))
-    elements.append(line_table)
-    elements.append(Spacer(1, 0.2*inch))
-    
-    # INFORMACIÓN DE LA TRANSACCIÓN
-    elements.append(Paragraph("<b>TRANSACTION DETAILS</b>", subtitle_style))
-    
-    transaction_data = [
-        ['Receipt Number:', pago_data.get('referencia', 'N/A')],
-        ['Transaction Date:', pago_data.get('fecha', datetime.now().strftime('%B %d, %Y %I:%M %p'))],
-        ['Payment Status:', '✅ APPROVED'],
-        ['Payment Method:', pago_data.get('metodo', 'Demo Payment')],
-    ]
-    
-    transaction_table = Table(transaction_data, colWidths=[2*inch, 4*inch])
-    transaction_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#F0F0F0')),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
-        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 12),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-    ]))
-    elements.append(transaction_table)
-    elements.append(Spacer(1, 0.3*inch))
-    
-    # INFORMACIÓN DEL CLIENTE
-    elements.append(Paragraph("<b>CLIENT INFORMATION</b>", subtitle_style))
-    
-    client_data = [
-        ['Client Name:', cita_data.get('cliente_nombre', 'N/A')],
-        ['Email:', cita_data.get('cliente_email', 'N/A')],
-        ['Phone:', cita_data.get('cliente_telefono', 'N/A')],
-    ]
-    
-    client_table = Table(client_data, colWidths=[2*inch, 4*inch])
-    client_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#F0F0F0')),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
-        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 12),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-    ]))
-    elements.append(client_table)
-    elements.append(Spacer(1, 0.3*inch))
-    
-    # INFORMACIÓN DE LA CITA
-    elements.append(Paragraph("<b>APPOINTMENT DETAILS</b>", subtitle_style))
-    
-    appointment_data = [
-        ['Pet Name:', cita_data.get('mascota_nombre', 'N/A')],
-        ['Pet Species:', cita_data.get('mascota_especie', 'N/A')],
-        ['Veterinarian:', f"Dr. {cita_data.get('veterinario_nombre', 'N/A')}"],
-        ['Date & Time:', cita_data.get('fecha', 'N/A')],
-        ['Service:', cita_data.get('motivo', 'N/A')],
-        ['Duration:', f"{cita_data.get('duracion', 1)} hour(s)"],
-    ]
-    
-    appointment_table = Table(appointment_data, colWidths=[2*inch, 4*inch])
-    appointment_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#F0F0F0')),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-        ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
-        ('ALIGN', (1, 0), (1, -1), 'LEFT'),
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 12),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-    ]))
-    elements.append(appointment_table)
-    elements.append(Spacer(1, 0.3*inch))
-    
-    # DESGLOSE DE PAGO
-    elements.append(Paragraph("<b>PAYMENT BREAKDOWN</b>", subtitle_style))
-    
-    payment_data = [
-        ['Description', 'Amount'],
-        ['Service Fee', f"${pago_data.get('monto', 0):,.2f} COP"],
-        ['Tax (0%)', '$0.00 COP'],
-        ['', ''],
-        ['TOTAL PAID', f"${pago_data.get('monto', 0):,.2f} COP"],
-    ]
-    
-    payment_table = Table(payment_data, colWidths=[4*inch, 2*inch])
-    payment_table.setStyle(TableStyle([
-        # Header
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#6B8E23')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 11),
+    """Genera un recibo en PDF para una cita pagada."""
+    try:
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+        elements = []
+        styles = getSampleStyleSheet()
         
-        # Content
-        ('ALIGN', (0, 1), (0, -2), 'LEFT'),
-        ('ALIGN', (1, 1), (1, -2), 'RIGHT'),
-        ('FONTNAME', (0, 1), (-1, -2), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -2), 10),
+        # Estilos personalizados
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=colors.HexColor('#6B8E23'),
+            spaceAfter=30,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold'
+        )
         
-        # Línea divisoria
-        ('LINEABOVE', (0, 3), (-1, 3), 1, colors.grey),
+        subtitle_style = ParagraphStyle(
+            'CustomSubtitle',
+            parent=styles['Heading2'],
+            fontSize=16,
+            textColor=colors.HexColor('#556B2F'),
+            spaceAfter=12,
+            fontName='Helvetica-Bold'
+        )
         
-        # Total
-        ('BACKGROUND', (0, 4), (-1, 4), colors.HexColor('#F0F0F0')),
-        ('TEXTCOLOR', (0, 4), (-1, 4), colors.black),
-        ('ALIGN', (0, 4), (0, 4), 'RIGHT'),
-        ('ALIGN', (1, 4), (1, 4), 'RIGHT'),
-        ('FONTNAME', (0, 4), (-1, 4), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 4), (-1, 4), 12),
+        # HEADER
+        elements.append(Paragraph("🐾 PETCARE VETERINARY CLINIC", title_style))
+        elements.append(Paragraph("Payment Receipt", subtitle_style))
+        elements.append(Spacer(1, 0.3*inch))
         
-        # General
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LEFTPADDING', (0, 0), (-1, -1), 12),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 12),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-    ]))
-    elements.append(payment_table)
-    elements.append(Spacer(1, 0.4*inch))
-    
-    # FOOTER
-    footer_style = ParagraphStyle(
-        'Footer',
-        parent=styles['Normal'],
-        fontSize=9,
-        textColor=colors.grey,
-        alignment=TA_CENTER
-    )
-    
-    elements.append(Spacer(1, 0.2*inch))
-    elements.append(Paragraph("─" * 80, footer_style))
-    elements.append(Spacer(1, 0.1*inch))
-    elements.append(Paragraph(
-        "<b>Thank you for choosing PetCare Veterinary Clinic!</b>",
-        footer_style
-    ))
-    elements.append(Paragraph(
-        "For questions about this receipt, please contact us at support@petcare.com or call (555) 123-4567",
-        footer_style
-    ))
-    elements.append(Paragraph(
-        "This is an electronic receipt. No signature required.",
-        footer_style
-    ))
-    
-    # Construir el PDF
-    doc.build(elements)
-    buffer.seek(0)
-    return buffer
+        # TRANSACTION DETAILS
+        elements.append(Paragraph("<b>TRANSACTION DETAILS</b>", subtitle_style))
+        
+        transaction_data = [
+            ['Receipt Number:', pago_data.get('referencia', 'N/A')],
+            ['Transaction Date:', pago_data.get('fecha', datetime.now().strftime('%B %d, %Y %I:%M %p'))],
+            ['Payment Status:', 'APPROVED'],
+            ['Payment Method:', pago_data.get('metodo', 'Demo Payment')],
+        ]
+        
+        transaction_table = Table(transaction_data, colWidths=[2*inch, 4*inch])
+        transaction_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#F0F0F0')),
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('LEFTPADDING', (0, 0), (-1, -1), 12),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        elements.append(transaction_table)
+        elements.append(Spacer(1, 0.3*inch))
+        
+        # CLIENT INFORMATION
+        elements.append(Paragraph("<b>CLIENT INFORMATION</b>", subtitle_style))
+        
+        client_data = [
+            ['Client Name:', cita_data.get('cliente_nombre', 'N/A')],
+            ['Email:', cita_data.get('cliente_email', 'N/A')],
+            ['Phone:', cita_data.get('cliente_telefono', 'N/A')],
+        ]
+        
+        client_table = Table(client_data, colWidths=[2*inch, 4*inch])
+        client_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#F0F0F0')),
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('LEFTPADDING', (0, 0), (-1, -1), 12),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        elements.append(client_table)
+        elements.append(Spacer(1, 0.3*inch))
+        
+        # APPOINTMENT DETAILS
+        elements.append(Paragraph("<b>APPOINTMENT DETAILS</b>", subtitle_style))
+        
+        appointment_data = [
+            ['Pet Name:', cita_data.get('mascota_nombre', 'N/A')],
+            ['Pet Species:', cita_data.get('mascota_especie', 'N/A')],
+            ['Veterinarian:', f"Dr. {cita_data.get('veterinario_nombre', 'N/A')}"],
+            ['Date & Time:', cita_data.get('fecha', 'N/A')],
+            ['Service:', cita_data.get('motivo', 'N/A')],
+            ['Duration:', f"{cita_data.get('duracion', 1)} hour(s)"],
+        ]
+        
+        appointment_table = Table(appointment_data, colWidths=[2*inch, 4*inch])
+        appointment_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#F0F0F0')),
+            ('ALIGN', (0, 0), (0, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('LEFTPADDING', (0, 0), (-1, -1), 12),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        elements.append(appointment_table)
+        elements.append(Spacer(1, 0.3*inch))
+        
+        # PAYMENT BREAKDOWN
+        elements.append(Paragraph("<b>PAYMENT BREAKDOWN</b>", subtitle_style))
+        
+        payment_data = [
+            ['Description', 'Amount'],
+            ['Service Fee', f"${pago_data.get('monto', 0):,.2f} COP"],
+            ['Tax (0%)', '$0.00 COP'],
+            ['', ''],
+            ['TOTAL PAID', f"${pago_data.get('monto', 0):,.2f} COP"],
+        ]
+        
+        payment_table = Table(payment_data, colWidths=[4*inch, 2*inch])
+        payment_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#6B8E23')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('ALIGN', (0, 1), (0, -2), 'LEFT'),
+            ('ALIGN', (1, 1), (1, -2), 'RIGHT'),
+            ('LINEABOVE', (0, 3), (-1, 3), 1, colors.grey),
+            ('BACKGROUND', (0, 4), (-1, 4), colors.HexColor('#F0F0F0')),
+            ('ALIGN', (0, 4), (0, 4), 'RIGHT'),
+            ('ALIGN', (1, 4), (1, 4), 'RIGHT'),
+            ('FONTNAME', (0, 4), (-1, 4), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 4), (-1, 4), 12),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('LEFTPADDING', (0, 0), (-1, -1), 12),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 12),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        elements.append(payment_table)
+        elements.append(Spacer(1, 0.4*inch))
+        
+        # FOOTER
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.grey,
+            alignment=TA_CENTER
+        )
+        
+        elements.append(Paragraph("<b>Thank you for choosing PetCare Veterinary Clinic!</b>", footer_style))
+        elements.append(Paragraph("For questions, contact us at support@petcare.com or (555) 123-4567", footer_style))
+        
+        # Construir PDF
+        doc.build(elements)
+        buffer.seek(0)
+        return buffer
+        
+    except Exception as e:
+        print(f"❌ Error al generar PDF: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 
-
-# ============================================================================
-# FUNCIÓN PARA ENVIAR EMAIL CON RECIBO
-# ============================================================================
 
 def enviar_recibo_email(cita_data, pago_data, destinatario_email):
-    """
-    Envía el recibo de pago por email.
-    
-    Args:
-        cita_data: Datos de la cita
-        pago_data: Datos del pago
-        destinatario_email: Email del destinatario
-    
-    Returns:
-        bool: True si se envió correctamente, False en caso contrario
-    """
+    """Envía el recibo de pago por email."""
     try:
+        print(f"📧 [enviar_recibo_email] Iniciando...")
+        print(f"📧 Destinatario: {destinatario_email}")
+        
         # Generar PDF
+        print(f"📧 Generando PDF...")
         pdf_buffer = generar_recibo_pdf(cita_data, pago_data)
+        
+        if not pdf_buffer:
+            print(f"❌ No se pudo generar el PDF")
+            return False
+        
+        print(f"✅ PDF generado exitosamente")
         
         # Crear email
         subject = f"Payment Receipt - PetCare Appointment #{pago_data.get('referencia', 'N/A')}"
@@ -3885,6 +3841,7 @@ PetCare Veterinary Clinic Team
 🌐 Website: www.petcare.com
         """
         
+        print(f"📧 Creando EmailMessage...")
         email = EmailMessage(
             subject=subject,
             body=body,
@@ -3894,14 +3851,18 @@ PetCare Veterinary Clinic Team
         
         # Adjuntar PDF
         filename = f"PetCare_Receipt_{pago_data.get('referencia', 'N/A')}.pdf"
+        print(f"📧 Adjuntando PDF: {filename}")
         email.attach(filename, pdf_buffer.getvalue(), 'application/pdf')
         
         # Enviar
+        print(f"📧 Enviando email...")
         email.send()
         
-        print(f"✅ Recibo enviado a {destinatario_email}")
+        print(f"✅ Email enviado exitosamente a {destinatario_email}")
         return True
         
     except Exception as e:
         print(f"❌ Error al enviar recibo: {e}")
+        import traceback
+        traceback.print_exc()
         return False
